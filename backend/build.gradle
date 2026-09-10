@@ -1,0 +1,132 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.1.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.alanstoll'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+	implementation 'org.springframework.boot:spring-boot-starter-restclient'
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.flywaydb:flyway-database-postgresql'
+	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
+	runtimeOnly 'org.postgresql:postgresql'
+	testImplementation 'org.springframework.boot:spring-boot-starter-actuator-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-flyway-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+	testImplementation 'org.testcontainers:testcontainers-postgresql'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+def composeFile = file('../compose.yaml')
+def dataDir = file('../data')
+def gdalImage = 'ghcr.io/osgeo/gdal:alpine-normal-3.13.1'
+
+def runCommand = { List<String> command ->
+	def process = new ProcessBuilder(command as String[]).redirectErrorStream(true).start()
+	def output = process.inputStream.getText('UTF-8')
+	if (process.waitFor() != 0) {
+		throw new GradleException("${command.take(4).join(' ')} failed: ${output}")
+	}
+	output.trim()
+}
+
+def compose = { List<String> arguments ->
+	runCommand(['docker', 'compose', '-f', composeFile.absolutePath] + arguments)
+}
+
+// All services, not just postgis: Boot skips its own compose startup once anything is running,
+// and would then never start geoserver.
+def startStack = {
+	compose(['up', '-d', '--wait'])
+}
+
+def psql = { String sql ->
+	compose(['exec', '-T', 'postgis', 'psql', '-U', 'app', '-d', 'sandysprings', '-qtAX', '-c', sql])
+}
+
+def fingerprint = { File source ->
+	source.length() > 64 * 1024 * 1024
+			? "size=${source.length()};mtime=${source.lastModified()}".toString()
+			: java.security.MessageDigest.getInstance('SHA-256').digest(source.bytes).encodeHex().toString()
+}
+
+tasks.register('ingestData') {
+	group = 'gis'
+	description = 'Loads the sources listed in data/layers.json into the staging schema with ogr2ogr'
+	doLast {
+		startStack()
+		// staging is owned here, not by Flyway: keeping it out of spring.flyway.schemas is what lets
+		// resetSchema rebuild app and gis without re-ingesting
+		psql('''create schema if not exists staging;
+				create table if not exists staging.load_log (
+					layer       text primary key,
+					source      text not null,
+					fingerprint text not null,
+					ingested_at timestamptz not null default now());''')
+		def network = null
+		new groovy.json.JsonSlurper().parse(new File(dataDir, 'layers.json')).each { layer ->
+			def source = new File(dataDir, layer.source)
+			if (!source.isFile()) {
+				throw new GradleException("${layer.layer}: no source at ${source}")
+			}
+			def current = fingerprint(source)
+			if (psql("select fingerprint from staging.load_log where layer = '${layer.layer}'") == current) {
+				logger.lifecycle("ingestData: staging.${layer.table} is up to date")
+				return
+			}
+			network = network ?: new groovy.json.JsonSlurper()
+					.parseText(compose(['config', '--format', 'json'])).name + '_default'
+			def report = runCommand(['docker', 'run', '--rm', '--network', network,
+					'-v', "${dataDir.absolutePath.replace(File.separatorChar, '/' as char)}:/data:ro", gdalImage,
+					'ogr2ogr', '-f', 'PostgreSQL',
+					'PG:host=postgis dbname=sandysprings user=app password=app',
+					"/data/${layer.source}", '-nln', "staging.${layer.table}", '-overwrite',
+					'-lco', 'GEOMETRY_NAME=geom', '-lco', 'FID=id'] + layer.options)
+			if (report) {
+				logger.lifecycle(report)
+			}
+			psql("""insert into staging.load_log (layer, source, fingerprint)
+					values ('${layer.layer}', '${layer.source}', '${current}')
+					on conflict (layer) do update set source = excluded.source,
+						fingerprint = excluded.fingerprint, ingested_at = now();""")
+			logger.lifecycle("ingestData: staging.${layer.table} loaded from ${layer.source}")
+		}
+	}
+}
+
+tasks.register('resetSchema') {
+	group = 'gis'
+	description = 'Drops the app and gis schemas so the next bootRun re-migrates; keeps staging'
+	doLast {
+		startStack()
+		psql('drop schema if exists gis cascade; drop schema if exists app cascade;')
+		logger.lifecycle('resetSchema: dropped app and gis, kept staging')
+	}
+}
+
+tasks.named('bootRun') {
+	dependsOn 'ingestData'
+}

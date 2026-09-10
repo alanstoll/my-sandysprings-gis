@@ -1,0 +1,12 @@
+{"dataStore": {
+  "name": "postgis",
+  "connectionParameters": {"entry": [
+    {"@key": "dbtype",   "$": "postgis"},
+    {"@key": "host",     "$": "postgis"},
+    {"@key": "port",     "$": "5432"},
+    {"@key": "database", "$": "sandysprings"},
+    {"@key": "schema",   "$": "gis"},
+    {"@key": "user",     "$": "geoserver"},
+    {"@key": "passwd",   "$": "geoserver"}
+  ]}
+}}

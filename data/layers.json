@@ -1,0 +1,8 @@
+[
+  {
+    "layer": "city_limit",
+    "source": "layers/city-limit.geojson",
+    "table": "city_limit_raw",
+    "options": ["-nlt", "PROMOTE_TO_MULTI", "-t_srs", "EPSG:4326"]
+  }
+]

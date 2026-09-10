@@ -1,0 +1,10 @@
+data/raw/*
+!data/raw/.gitkeep
+
+CLAUDE.md
+DEVIATIONS.md
+
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
