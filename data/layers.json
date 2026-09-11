@@ -16,5 +16,23 @@
     "attribution": "FEMA National Flood Hazard Layer, Fulton County (13121C), effective 2024-07-12",
     "license": "Public domain",
     "url": "https://msc.fema.gov/portal/advanceSearch"
+  },
+  {
+    "layer": "acs_bg_geom",
+    "source": "layers/acs-bg.geojson",
+    "table": "acs_bg_geom_raw",
+    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "attribution": "U.S. Census Bureau, TIGER/Line 2024 block groups",
+    "license": "Public domain",
+    "url": "https://www2.census.gov/geo/tiger/TIGER2024/BG/"
+  },
+  {
+    "layer": "acs_bg_data",
+    "source": "layers/acs-bg.csv",
+    "table": "acs_bg_data_raw",
+    "options": [],
+    "attribution": "U.S. Census Bureau, American Community Survey 2020-2024 5-Year Estimates, table B03002",
+    "license": "Public domain",
+    "url": "https://api.census.gov/data/2024/acs/acs5"
   }
 ]

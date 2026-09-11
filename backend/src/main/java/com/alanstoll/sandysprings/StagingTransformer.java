@@ -32,6 +32,7 @@ class StagingTransformer implements ApplicationRunner {
 	public void run(ApplicationArguments args) throws IOException {
 		transform("city_limit", "transform/city-limit.sql");
 		transform("flood_zone", "transform/flood-zone.sql");
+		transform("acs_bg", "transform/acs-bg.sql");
 	}
 
 	private void transform(String table, String script) throws IOException {

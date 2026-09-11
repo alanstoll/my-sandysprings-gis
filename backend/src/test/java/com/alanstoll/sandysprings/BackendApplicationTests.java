@@ -38,4 +38,15 @@ class BackendApplicationTests {
 			.isEqualTo(2);
 	}
 
+	@Test
+	void ranksBlockGroupsByPredominantCategory() {
+		assertThat(jdbc.sql("select predominant from gis.acs_bg order by geoid").query(String.class).list())
+			.containsExactly("white", "black", "hispanic");
+		// the survey can separate 800 from 100, but not 400 from 380 once their margins are combined
+		assertThat(jdbc.sql("select geoid from gis.acs_bg where ambiguous").query(String.class).single())
+			.isEqualTo("130890000012");
+		assertThat(jdbc.sql("select runner_up from gis.acs_bg where ambiguous").query(String.class).single())
+			.isEqualTo("white");
+	}
+
 }

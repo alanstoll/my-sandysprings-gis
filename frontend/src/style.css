@@ -14,3 +14,10 @@ aside h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; 
 #legend ul { list-style: none; margin: 0; padding: 0; }
 #legend li { display: flex; align-items: center; gap: .5rem; margin: .35rem 0; }
 #legend img { width: 28px; height: 28px; flex: none; }
+
+.identify h3 { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: #666; margin: .8rem 0 .3rem; }
+.identify h3:first-child { margin-top: 0; }
+.identify table { border-collapse: collapse; width: 100%; }
+.identify td { padding: .1rem 0; vertical-align: top; }
+.identify td:first-child { color: #666; padding-right: .75rem; white-space: nowrap; }
+.identify td:last-child { text-align: right; }

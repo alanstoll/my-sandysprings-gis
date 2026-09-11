@@ -1,10 +1,17 @@
 import type { MapLibreMap, StyleSpecification } from 'maplibre-gl'
+import type { Identify } from './identify'
 
 /** A row a node contributes to the legend while any of its own layers is on the map. */
-export type LegendEntry = { label: string; swatch: string }
+export type LegendEntry = { name: string; label: string; swatch: string }
 
 /** A node toggles its own layers plus every layer beneath it. */
-export type LayerNode = { label: string; layers?: string[]; children?: LayerNode[]; legend?: LegendEntry[] }
+export type LayerNode = {
+  label: string
+  layers?: string[]
+  children?: LayerNode[]
+  legend?: LegendEntry[]
+  identify?: Identify
+}
 
 /**
  * Groups the basemap style's 100-odd layers into something worth putting checkboxes on.

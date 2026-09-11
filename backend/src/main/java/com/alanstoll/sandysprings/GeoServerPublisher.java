@@ -49,10 +49,14 @@ class GeoServerPublisher implements ApplicationRunner {
 		ensure(FEATURETYPES, "place", "geoserver/featuretype-place.json");
 		ensure(FEATURETYPES, "city_limit", "geoserver/featuretype-city-limit.json");
 		ensure(FEATURETYPES, "flood_zone", "geoserver/featuretype-flood-zone.json");
+		ensure(FEATURETYPES, "acs_bg", "geoserver/featuretype-acs-bg.json");
 		ensureStyle("city_limit", "geoserver/style-city-limit.sld");
 		ensureStyle("flood_zone", "geoserver/style-flood-zone.sld");
+		// one style per theme on the one acs_bg layer: the client picks with the WMS styles parameter
+		ensureStyle("acs_race", "geoserver/style-acs-race.sld");
 		update("/layers/sandysprings:city_limit", "geoserver/layer-city-limit.json");
 		update("/layers/sandysprings:flood_zone", "geoserver/layer-flood-zone.json");
+		update("/layers/sandysprings:acs_bg", "geoserver/layer-acs-bg.json");
 	}
 
 	private void ensure(String collection, String name, String body) {

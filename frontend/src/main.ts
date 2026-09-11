@@ -5,7 +5,8 @@ import type { StyleSpecification } from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import basemapStyle from './basemap-style.json'
 import { basemapTree, createLayerPanel } from './layer-tree'
-import type { LegendEntry } from './layer-tree'
+import type { LayerNode, LegendEntry } from './layer-tree'
+import { createIdentify } from './identify'
 
 // pmtiles:// lets MapLibre range-request tiles straight out of the static archive that
 // `gradlew buildBasemap` writes, so there is still no tile server.
@@ -44,8 +45,11 @@ const map = new MapLibreMap({
 
 map.addControl(new NavigationControl({ visualizePitch: true }), 'top-left')
 
+const WMS = '/geoserver/sandysprings/wms'
+
 const wms = (layers: string) =>
-  '/geoserver/sandysprings/wms?service=WMS&version=1.1.1&request=GetMap&layers=' +
+  WMS +
+  '?service=WMS&version=1.1.1&request=GetMap&layers=' +
   layers +
   '&bbox={bbox-epsg-3857}&width=512&height=512&srs=EPSG:3857&format=image/png&transparent=true'
 
@@ -55,9 +59,10 @@ const wms = (layers: string) =>
 // step. 28px: GeoServer's 20px default leaves the city limit's 3px dashes unreadable.
 const legendFor = async (layer: string): Promise<LegendEntry[]> => {
   const request = (params: string) =>
-    `/geoserver/sandysprings/wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=${layer}&${params}`
+    `${WMS}?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=${layer}&${params}`
   const [{ rules }] = await fetch(request('format=application/json')).then((r) => r.json()).then((b) => b.Legend)
   return rules.map((rule: { name: string; title?: string }) => ({
+    name: rule.name,
     label: rule.title ?? rule.name,
     swatch: request(`format=image/png&width=28&height=28&legend_options=forceLabels:off&rule=${encodeURIComponent(rule.name)}`),
   }))
@@ -70,6 +75,17 @@ const legendFor = async (layer: string): Promise<LegendEntry[]> => {
 const roadsUp = style.layers.find((l) => (l as { 'source-layer'?: string })['source-layer'] === 'transportation')?.id
 
 map.on('load', async () => {
+  // Added before flood_zone so it sits under it: this one covers the whole extent, and on top it
+  // would wash the flood zones out. Its style is the layer's default, so no styles parameter yet;
+  // a second ACS theme is what makes the WMS styles parameter worth threading through.
+  map.addSource('acs_bg', {
+    type: 'raster',
+    tiles: [wms('sandysprings:acs_bg')],
+    tileSize: 512,
+    attribution: 'Demographics: U.S. Census Bureau ACS 2020-2024 (public domain)',
+  })
+  map.addLayer({ id: 'acs_bg', type: 'raster', source: 'acs_bg' }, roadsUp)
+
   // its own WMS request rather than another layer on the city_limit one, so the panel can
   // toggle it on its own
   map.addSource('flood_zone', {
@@ -90,20 +106,70 @@ map.on('load', async () => {
   // the boundary stays on top of everything; it is a reference line, not thematic data
   map.addLayer({ id: 'city_limit', type: 'raster', source: 'city_limit' })
 
-  const [cityLimit, floodZone] = await Promise.all([
+  const [cityLimit, floodZone, acsRace] = await Promise.all([
     legendFor('sandysprings:city_limit'),
     legendFor('sandysprings:flood_zone'),
+    legendFor('sandysprings:acs_bg'),
   ])
+
+  // The SLD already names every category; reuse those labels rather than spelling them out again,
+  // so the popup and the legend cannot disagree. Rule names are the category keys in the data.
+  const categories = Object.fromEntries(acsRace.map(({ name, label }) => [name, label]))
+
+  const nodes: LayerNode[] = [
+    // no identify: the city limit is a reference boundary, and as a polygon it would answer every
+    // click inside the city with the same row
+    { label: 'City limits', layers: ['city_limit'], legend: cityLimit },
+    {
+      label: 'Flood zones',
+      layers: ['flood_zone'],
+      legend: floodZone,
+      identify: {
+        source: 'sandysprings:flood_zone',
+        properties: ['zone', 'subtype', 'sfha'],
+        section: (p) => ({
+          title: 'Flood hazard',
+          body: {
+            kind: 'table',
+            rows: [
+              { label: 'Zone', value: String(p.zone) },
+              ...(p.subtype ? [{ label: 'Subtype', value: String(p.subtype) }] : []),
+              { label: 'Special flood hazard area', value: p.sfha ? 'Yes' : 'No' },
+            ],
+          },
+        }),
+      },
+    },
+    {
+      label: 'Predominant race & ethnicity',
+      layers: ['acs_bg'],
+      legend: acsRace,
+      identify: {
+        source: 'sandysprings:acs_bg',
+        properties: ['geoid', 'population', 'predominant', 'runner_up', 'ambiguous'],
+        section: (p) => {
+          const rows = [
+            { label: 'Population', value: Number(p.population).toLocaleString() },
+            { label: 'Largest group', value: categories[String(p.predominant)] },
+            { label: 'Then', value: categories[String(p.runner_up)] },
+          ]
+          // the one thing the fill cannot say: whether the order of those two is real
+          if (p.ambiguous) {
+            rows.push({ label: 'Margin of error', value: 'Too close to separate these two' })
+          }
+          return { title: `Block group ${p.geoid}`, body: { kind: 'table', rows } }
+        },
+      },
+    },
+    basemapTree(style),
+  ]
 
   const panel = {
     layers: document.querySelector<HTMLElement>('#layers')!,
     legend: document.querySelector<HTMLElement>('#legend')!,
   }
-  createLayerPanel(map, panel, [
-    { label: 'City limits', layers: ['city_limit'], legend: cityLimit },
-    { label: 'Flood zones', layers: ['flood_zone'], legend: floodZone },
-    basemapTree(style),
-  ])
+  createLayerPanel(map, panel, nodes)
+  createIdentify(map, WMS, nodes)
 })
 
 const list = document.querySelector<HTMLUListElement>('#places')!
