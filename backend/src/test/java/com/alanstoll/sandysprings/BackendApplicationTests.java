@@ -11,7 +11,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Import(TestcontainersConfiguration.class)
-@SpringBootTest
+// Flyway and the transforms are what these assert on; publishing to GeoServer is a startup side
+// effect that would need a live one, and would rewrite it from whatever the fixture happens to say.
+@SpringBootTest(properties = "sandysprings.geoserver.publish=false")
 class BackendApplicationTests {
 
 	@Autowired

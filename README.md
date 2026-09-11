@@ -2,6 +2,9 @@
 
 Spring Boot 4 + GeoServer 3 + PostGIS 18 for Sandy Springs, GA. Prerequisites: JDK 25, Node 24, Docker.
 
+On a fresh clone run `buildBasemap` once before the rest: the archive it writes is gitignored, and
+the map has no ground without it. Everything else works from what is committed.
+
 ```
 cd backend && gradlew bootRun       # starts compose, ingests data/, migrates, publishes to geoserver, serves :8080
 cd backend && gradlew resetSchema   # drops app and gis so the next bootRun rebuilds them; keeps ingested staging data

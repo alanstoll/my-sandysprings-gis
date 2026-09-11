@@ -22,7 +22,10 @@ import org.springframework.web.client.RestClient;
  * directory, so the geoserver volume stays disposable.
  */
 @Component
-@ConditionalOnProperty("sandysprings.geoserver.url")
+// Both: the url says a GeoServer exists to publish to, the flag says to do it on startup.
+// Publishing is a side effect of running the application, not of building its context, and a
+// test that loads the context should not reach out and rewrite a live catalogue to do it.
+@ConditionalOnProperty({ "sandysprings.geoserver.url", "sandysprings.geoserver.publish" })
 @Order(2)
 class GeoServerPublisher implements ApplicationRunner {
 
