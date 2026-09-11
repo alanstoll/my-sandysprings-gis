@@ -118,21 +118,23 @@ tasks.register('ingestData') {
 }
 
 
+// Everything cut to the map's extent uses these: the basemap archive, the flood zone clip, and
+// maxBounds in the frontend. City limits plus a 2 km buffer.
+def mapBounds = ['-84.47060', '33.85860', '-84.23737', '34.02844']
+
 // Basemap vector tiles. Planetiler writes a pmtiles archive that the frontend serves as a static
 // file over HTTP range requests, so there is no tile server. Not wired into bootRun: the build is
 // slow, its sources are large, and neither the backend nor the gis schema depends on it.
 def planetilerVersion = '0.10.2'
 def planetilerJar = new File(dataDir, 'raw/planetiler.jar')
 def basemapOutput = file('../frontend/public/basemap.pmtiles')
-// city limits plus a 2 km buffer; 16 is planetiler's maximum zoom
-def basemapBounds = '-84.47060,33.85860,-84.23737,34.02844'
-def basemapMaxzoom = 16
+def basemapMaxzoom = 16  // planetiler's maximum
 
 tasks.register('buildBasemap') {
 	group = 'gis'
 	description = 'Builds the OpenStreetMap basemap pmtiles archive with planetiler'
 	inputs.property('planetiler', planetilerVersion)
-	inputs.property('bounds', basemapBounds)
+	inputs.property('bounds', mapBounds)
 	inputs.property('maxzoom', basemapMaxzoom)
 	outputs.file(basemapOutput)
 	doLast {
@@ -153,7 +155,7 @@ tasks.register('buildBasemap') {
 				'--download',
 				"--download_dir=${new File(dataDir, 'raw/planetiler/sources').absolutePath}",
 				"--tmpdir=${new File(dataDir, 'raw/planetiler/tmp').absolutePath}",
-				"--bounds=${basemapBounds}",
+				"--bounds=${mapBounds.join(',')}",
 				'--minzoom=0', "--maxzoom=${basemapMaxzoom}",
 				"--output=${basemapOutput.absolutePath}",
 				'--force'] as String[]).redirectErrorStream(true).start()
@@ -164,6 +166,31 @@ tasks.register('buildBasemap') {
 		logger.lifecycle("buildBasemap: wrote ${basemapOutput.name} (${(basemapOutput.length() / 1048576) as int} MB)")
 	}
 }
+// FEMA publishes the National Flood Hazard Layer one county at a time, and the Fulton County
+// download is far too large to commit. This cuts it down to a load-ready source that is, so
+// data/layers/flood-hazard.geojson is what a fresh clone ingests. Re-run it when FEMA reissues
+// the county. Not wired into bootRun for the same reason as buildBasemap: its input is not there.
+tasks.register('prepareFloodHazard') {
+	group = 'gis'
+	description = 'Clips the FEMA NFHL download in data/raw/nfhl to the map bounds, writing data/layers/flood-hazard.geojson'
+	doLast {
+		def source = new File(dataDir, 'raw/nfhl/S_FLD_HAZ_AR.shp')
+		if (!source.isFile()) {
+			throw new GradleException("no NFHL county download at ${source.parentFile}")
+		}
+		def output = new File(dataDir, 'layers/flood-hazard.geojson')
+		output.delete()
+		runCommand(['docker', 'run', '--rm',
+				'-v', "${dataDir.absolutePath.replace(File.separatorChar, '/' as char)}:/data", gdalImage,
+				'ogr2ogr', '-f', 'GeoJSON', '/data/layers/flood-hazard.geojson',
+				'/data/raw/nfhl/S_FLD_HAZ_AR.shp', '-clipsrc'] + mapBounds +
+				// the rest of the NFHL schema is -9999 or a study id everywhere in this extent
+				['-select', 'FLD_ZONE,ZONE_SUBTY,SFHA_TF', '-nlt', 'PROMOTE_TO_MULTI',
+				'-lco', 'RFC7946=YES', '-lco', 'COORDINATE_PRECISION=6'])
+		logger.lifecycle("prepareFloodHazard: wrote ${output.name} (${(output.length() / 1048576) as int} MB)")
+	}
+}
+
 tasks.register('resetSchema') {
 	group = 'gis'
 	description = 'Drops the app and gis schemas so the next bootRun re-migrates; keeps staging'

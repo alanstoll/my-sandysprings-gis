@@ -11,6 +11,8 @@
       <Title>City Limits</Title>
       <FeatureTypeStyle>
         <Rule>
+          <Name>city_limit</Name>
+          <Title>City limit</Title>
           <!-- outline only: a fill washes out the basemap underneath -->
           <PolygonSymbolizer>
             <Stroke>

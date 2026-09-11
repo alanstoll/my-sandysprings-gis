@@ -48,8 +48,11 @@ class GeoServerPublisher implements ApplicationRunner {
 		ensure("/workspaces/sandysprings/datastores", "postgis", "geoserver/datastore.json");
 		ensure(FEATURETYPES, "place", "geoserver/featuretype-place.json");
 		ensure(FEATURETYPES, "city_limit", "geoserver/featuretype-city-limit.json");
+		ensure(FEATURETYPES, "flood_zone", "geoserver/featuretype-flood-zone.json");
 		ensureStyle("city_limit", "geoserver/style-city-limit.sld");
+		ensureStyle("flood_zone", "geoserver/style-flood-zone.sld");
 		update("/layers/sandysprings:city_limit", "geoserver/layer-city-limit.json");
+		update("/layers/sandysprings:flood_zone", "geoserver/layer-flood-zone.json");
 	}
 
 	private void ensure(String collection, String name, String body) {

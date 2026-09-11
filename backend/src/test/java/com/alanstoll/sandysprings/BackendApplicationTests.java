@@ -29,4 +29,13 @@ class BackendApplicationTests {
 			.isEqualTo(LocalDate.of(2005, 11, 30));
 	}
 
+	@Test
+	void transformsFloodZones() {
+		assertThat(jdbc.sql("select zone from gis.flood_zone where sfha").query(String.class).list())
+			.containsExactlyInAnyOrder("AE", "AE", "A");
+		// the NFHL leaves a zone without a subtype empty, not null, once ogr2ogr has loaded it
+		assertThat(jdbc.sql("select count(*) from gis.flood_zone where subtype is null").query(Long.class).single())
+			.isEqualTo(2);
+	}
+
 }

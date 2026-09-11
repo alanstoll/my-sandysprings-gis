@@ -1,7 +1,10 @@
 import type { MapLibreMap, StyleSpecification } from 'maplibre-gl'
 
+/** A row a node contributes to the legend while any of its own layers is on the map. */
+export type LegendEntry = { label: string; swatch: string }
+
 /** A node toggles its own layers plus every layer beneath it. */
-export type LayerNode = { label: string; layers?: string[]; children?: LayerNode[] }
+export type LayerNode = { label: string; layers?: string[]; children?: LayerNode[]; legend?: LegendEntry[] }
 
 /**
  * Groups the basemap style's 100-odd layers into something worth putting checkboxes on.
@@ -64,11 +67,34 @@ const descendantLayers = (node: LayerNode): string[] => [
   ...(node.children ?? []).flatMap(descendantLayers),
 ]
 
-/** Renders a checkbox tree that drives layer visibility on the map. */
-export function createLayerPanel(map: MapLibreMap, container: HTMLElement, nodes: LayerNode[]): void {
+/** Renders a checkbox tree that drives layer visibility on the map, plus the legend it implies. */
+export function createLayerPanel(
+  map: MapLibreMap,
+  panel: { layers: HTMLElement; legend: HTMLElement },
+  nodes: LayerNode[],
+): void {
   const boxes: { node: LayerNode; input: HTMLInputElement }[] = []
 
   const isVisible = (id: string) => map.getLayoutProperty(id, 'visibility') !== 'none'
+
+  // A node's own layers, not its descendants': a group's entries would otherwise appear as soon
+  // as anything under it was on.
+  const refreshLegend = () => {
+    const entries = boxes
+      .filter(({ node }) => node.legend?.length && (node.layers ?? []).some(isVisible))
+      .flatMap(({ node }) => node.legend!)
+    panel.legend.querySelector('ul')!.replaceChildren(
+      ...entries.map(({ label, swatch }) => {
+        const li = document.createElement('li')
+        const img = document.createElement('img')
+        img.src = swatch
+        img.alt = ''
+        li.append(img, document.createTextNode(label))
+        return li
+      }),
+    )
+    panel.legend.hidden = entries.length === 0
+  }
 
   const refresh = () => {
     for (const { node, input } of boxes) {
@@ -77,6 +103,7 @@ export function createLayerPanel(map: MapLibreMap, container: HTMLElement, nodes
       input.checked = shown > 0
       input.indeterminate = shown > 0 && shown < ids.length
     }
+    refreshLegend()
   }
 
   const build = (list: LayerNode[]): HTMLUListElement => {
@@ -110,6 +137,6 @@ export function createLayerPanel(map: MapLibreMap, container: HTMLElement, nodes
     return ul
   }
 
-  container.replaceChildren(build(nodes))
+  panel.layers.replaceChildren(build(nodes))
   refresh()
 }

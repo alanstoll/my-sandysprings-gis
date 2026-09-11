@@ -7,5 +7,14 @@
     "attribution": "City of Sandy Springs GIS Department",
     "license": "CC BY 4.0",
     "url": "https://gis2.sandyspringsga.gov/arcgis/rest/services/OpenData/General_Reference/MapServer/107"
+  },
+  {
+    "layer": "flood_zone",
+    "source": "layers/flood-hazard.geojson",
+    "table": "flood_zone_raw",
+    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "attribution": "FEMA National Flood Hazard Layer, Fulton County (13121C), effective 2024-07-12",
+    "license": "Public domain",
+    "url": "https://msc.fema.gov/portal/advanceSearch"
   }
 ]

@@ -5,6 +5,7 @@ import type { StyleSpecification } from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import basemapStyle from './basemap-style.json'
 import { basemapTree, createLayerPanel } from './layer-tree'
+import type { LegendEntry } from './layer-tree'
 
 // pmtiles:// lets MapLibre range-request tiles straight out of the static archive that
 // `gradlew buildBasemap` writes, so there is still no tile server.
@@ -43,23 +44,64 @@ const map = new MapLibreMap({
 
 map.addControl(new NavigationControl({ visualizePitch: true }), 'top-left')
 
-map.on('load', () => {
+const wms = (layers: string) =>
+  '/geoserver/sandysprings/wms?service=WMS&version=1.1.1&request=GetMap&layers=' +
+  layers +
+  '&bbox={bbox-epsg-3857}&width=512&height=512&srs=EPSG:3857&format=image/png&transparent=true'
+
+// The SLD is the only place a layer's classes, their colours and their labels are written down,
+// so ask GeoServer what they are instead of restating them here. The swatches come back from the
+// same renderer that draws the map, so a style change reaches the legend with nothing to keep in
+// step. 28px: GeoServer's 20px default leaves the city limit's 3px dashes unreadable.
+const legendFor = async (layer: string): Promise<LegendEntry[]> => {
+  const request = (params: string) =>
+    `/geoserver/sandysprings/wms?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=${layer}&${params}`
+  const [{ rules }] = await fetch(request('format=application/json')).then((r) => r.json()).then((b) => b.Legend)
+  return rules.map((rule: { name: string; title?: string }) => ({
+    label: rule.title ?? rule.name,
+    swatch: request(`format=image/png&width=28&height=28&legend_options=forceLabels:off&rule=${encodeURIComponent(rule.name)}`),
+  }))
+}
+
+// Where the thematic overlays slot into the basemap: above its land and water, below its roads,
+// buildings and labels, so you can see what is actually inside a flood zone. Found by source
+// rather than hardcoded as an id, like basemapTree, so a newer OSM Liberty cannot silently move
+// it; if the style ever ships no roads at all this falls back to undefined, meaning on top.
+const roadsUp = style.layers.find((l) => (l as { 'source-layer'?: string })['source-layer'] === 'transportation')?.id
+
+map.on('load', async () => {
+  // its own WMS request rather than another layer on the city_limit one, so the panel can
+  // toggle it on its own
+  map.addSource('flood_zone', {
+    type: 'raster',
+    tiles: [wms('sandysprings:flood_zone')],
+    tileSize: 512,
+    attribution: 'Flood zones: FEMA National Flood Hazard Layer (public domain)',
+  })
+  map.addLayer({ id: 'flood_zone', type: 'raster', source: 'flood_zone' }, roadsUp)
+
   // city limits stay on GeoServer: MapLibre consumes the WMS as a raster source
   map.addSource('city_limit', {
     type: 'raster',
-    tiles: [
-      '/geoserver/sandysprings/wms?service=WMS&version=1.1.1&request=GetMap' +
-        '&layers=sandysprings:city_limit,sandysprings:place' +
-        '&bbox={bbox-epsg-3857}&width=512&height=512&srs=EPSG:3857' +
-        '&format=image/png&transparent=true',
-    ],
+    tiles: [wms('sandysprings:city_limit,sandysprings:place')],
     tileSize: 512,
     attribution: 'City limits © City of Sandy Springs GIS Department (CC BY 4.0)',
   })
+  // the boundary stays on top of everything; it is a reference line, not thematic data
   map.addLayer({ id: 'city_limit', type: 'raster', source: 'city_limit' })
 
-  createLayerPanel(map, document.querySelector<HTMLElement>('#layers')!, [
-    { label: 'City limits', layers: ['city_limit'] },
+  const [cityLimit, floodZone] = await Promise.all([
+    legendFor('sandysprings:city_limit'),
+    legendFor('sandysprings:flood_zone'),
+  ])
+
+  const panel = {
+    layers: document.querySelector<HTMLElement>('#layers')!,
+    legend: document.querySelector<HTMLElement>('#legend')!,
+  }
+  createLayerPanel(map, panel, [
+    { label: 'City limits', layers: ['city_limit'], legend: cityLimit },
+    { label: 'Flood zones', layers: ['flood_zone'], legend: floodZone },
     basemapTree(style),
   ])
 })
