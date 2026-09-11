@@ -117,6 +117,53 @@ tasks.register('ingestData') {
 	}
 }
 
+
+// Basemap vector tiles. Planetiler writes a pmtiles archive that the frontend serves as a static
+// file over HTTP range requests, so there is no tile server. Not wired into bootRun: the build is
+// slow, its sources are large, and neither the backend nor the gis schema depends on it.
+def planetilerVersion = '0.10.2'
+def planetilerJar = new File(dataDir, 'raw/planetiler.jar')
+def basemapOutput = file('../frontend/public/basemap.pmtiles')
+// city limits plus a 2 km buffer; 16 is planetiler's maximum zoom
+def basemapBounds = '-84.47060,33.85860,-84.23737,34.02844'
+def basemapMaxzoom = 16
+
+tasks.register('buildBasemap') {
+	group = 'gis'
+	description = 'Builds the OpenStreetMap basemap pmtiles archive with planetiler'
+	inputs.property('planetiler', planetilerVersion)
+	inputs.property('bounds', basemapBounds)
+	inputs.property('maxzoom', basemapMaxzoom)
+	outputs.file(basemapOutput)
+	doLast {
+		if (!planetilerJar.isFile()) {
+			logger.lifecycle("buildBasemap: downloading planetiler ${planetilerVersion}")
+			planetilerJar.parentFile.mkdirs()
+			URI.create("https://github.com/onthegomap/planetiler/releases/download/v${planetilerVersion}/planetiler.jar")
+					.toURL().withInputStream { source -> planetilerJar.withOutputStream { it << source } }
+		}
+		basemapOutput.parentFile.mkdirs()
+		// Stream the log line by line rather than buffering it like runCommand (this runs for
+		// minutes), and rather than inheritIO: under the Gradle daemon that hands the child a pipe
+		// nobody drains, and planetiler blocks as soon as it fills.
+		def process = new ProcessBuilder(['java', '-Xmx4g', '-jar', planetilerJar.absolutePath,
+				// area only names the cached download; osm_url is what actually gets fetched
+				'--area=georgia',
+				'--osm_url=https://download.geofabrik.de/north-america/us/georgia-latest.osm.pbf',
+				'--download',
+				"--download_dir=${new File(dataDir, 'raw/planetiler/sources').absolutePath}",
+				"--tmpdir=${new File(dataDir, 'raw/planetiler/tmp').absolutePath}",
+				"--bounds=${basemapBounds}",
+				'--minzoom=0', "--maxzoom=${basemapMaxzoom}",
+				"--output=${basemapOutput.absolutePath}",
+				'--force'] as String[]).redirectErrorStream(true).start()
+		process.inputStream.withReader('UTF-8') { reader -> reader.eachLine { logger.lifecycle(it) } }
+		if (process.waitFor() != 0) {
+			throw new GradleException("planetiler failed with exit ${process.exitValue()}")
+		}
+		logger.lifecycle("buildBasemap: wrote ${basemapOutput.name} (${(basemapOutput.length() / 1048576) as int} MB)")
+	}
+}
 tasks.register('resetSchema') {
 	group = 'gis'
 	description = 'Drops the app and gis schemas so the next bootRun re-migrates; keeps staging'

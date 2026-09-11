@@ -2,3 +2,11 @@ html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
 body { display: flex; }
 aside { width: 16rem; padding: 1rem; overflow: auto; }
 #map { flex: 1; }
+
+aside h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #666; margin: 1.25rem 0 .4rem; }
+#layers ul { list-style: none; margin: 0; padding-left: 1.1rem; }
+#layers > ul { padding-left: 0; }
+#layers li { margin: .15rem 0; }
+#layers label { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; }
+#layers summary { cursor: pointer; list-style-position: outside; }
+#layers summary::marker { color: #999; }

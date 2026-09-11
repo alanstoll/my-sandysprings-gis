@@ -3,6 +3,9 @@
     "layer": "city_limit",
     "source": "layers/city-limit.geojson",
     "table": "city_limit_raw",
-    "options": ["-nlt", "PROMOTE_TO_MULTI", "-t_srs", "EPSG:4326"]
+    "options": ["-nlt", "PROMOTE_TO_MULTI", "-t_srs", "EPSG:4326"],
+    "attribution": "City of Sandy Springs GIS Department",
+    "license": "CC BY 4.0",
+    "url": "https://gis2.sandyspringsga.gov/arcgis/rest/services/OpenData/General_Reference/MapServer/107"
   }
 ]

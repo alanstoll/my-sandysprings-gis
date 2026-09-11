@@ -8,3 +8,6 @@ DEVIATIONS.md
 .vscode/
 .DS_Store
 Thumbs.db
+
+# generated basemap tiles (see gradlew buildBasemap)
+frontend/public/*.pmtiles

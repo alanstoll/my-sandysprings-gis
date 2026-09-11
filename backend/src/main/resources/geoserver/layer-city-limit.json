@@ -1,1 +1,7 @@
-{"layer": {"defaultStyle": {"name": "city_limit", "workspace": "sandysprings"}}}
+{"layer": {
+  "defaultStyle": {"name": "city_limit", "workspace": "sandysprings"},
+  "attribution": {
+    "title": "City of Sandy Springs GIS Department (CC BY 4.0)",
+    "href": "https://gis2.sandyspringsga.gov/arcgis/rest/services/OpenData/General_Reference/MapServer/107"
+  }
+}}

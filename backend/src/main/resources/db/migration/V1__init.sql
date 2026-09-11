@@ -9,6 +9,4 @@ create table gis.place (
     geom geometry(Point, 4326) not null
 );
 create index place_geom_idx on gis.place using gist (geom);
-
-insert into gis.place (name, geom)
-values ('Sandy Springs City Hall', ST_SetSRID(ST_MakePoint(-84.3776, 33.9290), 4326));
+-- No seed rows: /api/places and sandysprings:place stay empty until a real source feeds this table.

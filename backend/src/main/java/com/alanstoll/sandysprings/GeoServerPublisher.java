@@ -64,7 +64,10 @@ class GeoServerPublisher implements ApplicationRunner {
 
 	private void ensureStyle(String name, String sld) {
 		if (exists(STYLES + "/" + name)) {
-			log.info("GeoServer style {} exists", name);
+			// replace, not skip: the SLD in this repo is the source of truth for every start
+			rest.put().uri(STYLES + "/" + name).contentType(SLD).body(new ClassPathResource(sld))
+				.retrieve().toBodilessEntity();
+			log.info("GeoServer style {} updated", name);
 			return;
 		}
 		rest.post().uri(uri -> uri.path(STYLES).queryParam("name", name).build()).contentType(SLD)

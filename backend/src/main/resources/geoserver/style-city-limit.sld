@@ -11,14 +11,12 @@
       <Title>City Limits</Title>
       <FeatureTypeStyle>
         <Rule>
+          <!-- outline only: a fill washes out the basemap underneath -->
           <PolygonSymbolizer>
-            <Fill>
-              <CssParameter name="fill">#1f78b4</CssParameter>
-              <CssParameter name="fill-opacity">0.08</CssParameter>
-            </Fill>
             <Stroke>
-              <CssParameter name="stroke">#1f78b4</CssParameter>
-              <CssParameter name="stroke-width">2</CssParameter>
+              <CssParameter name="stroke">#000000</CssParameter>
+              <CssParameter name="stroke-width">3</CssParameter>
+              <CssParameter name="stroke-dasharray">12 7</CssParameter>
             </Stroke>
           </PolygonSymbolizer>
         </Rule>
