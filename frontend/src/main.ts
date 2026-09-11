@@ -108,7 +108,7 @@ type View = { id: string; label: string; available?: string[]; on: string[]; the
 
 const VIEWS: View[] = [
   { id: 'all', label: 'All layers', on: ['city_limit', 'basemap'], theme: null },
-  { id: 'city', label: 'City map', available: ['city_limit', 'basemap'],
+  { id: 'city', label: 'City map', available: ['aerial', 'city_limit', 'basemap'],
     on: ['city_limit', 'basemap'], theme: null },
   { id: 'race', label: 'Race & ethnicity', available: ['census', 'city_limit', 'basemap'],
     on: ['city_limit', 'basemap'], theme: 'acs_race' },
@@ -130,6 +130,21 @@ const dollars = (value: unknown) =>
   value === null || value === undefined ? 'Not published' : '$' + Number(value).toLocaleString()
 
 map.on('load', async () => {
+  // Added before the thematic layers so it ends up beneath them: imagery is a ground to draw on,
+  // not something to draw over a choropleth. Its tiles come from our own backend, which fetches
+  // them from USGS once and then keeps them. maxzoom is where NAIP stops holding more detail;
+  // past it MapLibre stretches a tile already on disk rather than asking for finer ones that
+  // carry no more information.
+  map.addSource('aerial', {
+    type: 'raster',
+    tiles: ['/api/aerial/{z}/{x}/{y}.jpg'],
+    tileSize: 256,
+    minzoom: 12,
+    maxzoom: 19,
+    attribution: 'Aerial imagery: USGS, USDA, The National Map (public domain)',
+  })
+  map.addLayer({ id: 'aerial', type: 'raster', source: 'aerial', layout: { visibility: 'none' } }, roadsUp)
+
   // One source per geography, both anchored under the roads so you can see what is inside them.
   // Only ever one is visible: two choropleths at once just occlude each other.
   for (const layer of ACS_LAYERS) {
@@ -235,6 +250,7 @@ map.on('load', async () => {
   }
 
   const allNodes: LayerNode[] = [
+    { id: 'aerial', label: 'Aerial imagery (NAIP)', layers: ['aerial'] },
     // no identify: the city limit is a reference boundary, and as a polygon it would answer every
     // click inside the city with the same row
     { id: 'city_limit', label: 'City limits', layers: ['city_limit'], legend: cityLimit },

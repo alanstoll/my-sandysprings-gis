@@ -14,12 +14,14 @@ cd frontend && npm install && npm run dev   # map at http://localhost:5173
 - GeoServer admin: http://localhost:8081/geoserver (admin / geoserver)
 - Backend health: http://localhost:8080/actuator/health
 - `data/layers/` holds committed sources, listed in `data/layers.json`. `data/raw/` is gitignored; copy large datasets there by hand.
+- Aerial imagery is proxied tile by tile from USGS NAIP and cached under `data/raw/aerial-cache/`, which fills as the layer is used and can be deleted at any time. Nothing to run: the layer works on a fresh clone, just slower until the cache warms.
 
 ## Credits
 
 - City limits: City of Sandy Springs GIS Department, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
 - Flood zones: [FEMA National Flood Hazard Layer](https://msc.fema.gov/portal/advanceSearch), Fulton County (13121C), effective 2024-07-12 (public domain)
 - Demographics: [U.S. Census Bureau](https://www.census.gov/programs-surveys/acs), American Community Survey 2020-2024 5-year estimates on TIGER/Line 2024 geographies (public domain). Block groups carry B03002 race and ethnicity, B01001 age and B25044 vehicles; tracts carry B19013 income, B25077 home value, B25064 rent, B25003 tenure and B08301 commuting. The split is reliability, not availability: each of those is published at block group too, but each describes a subset of the population rather than all of it, and the subset in one block group is small enough that barely half the estimates survive their own margin of error.
+- Aerial imagery: [USGS NAIP](https://imagery.nationalmap.gov/arcgis/rest/services/USGSNAIPImagery/ImageServer) via The National Map, 30 cm (public domain)
 - Basemap tiles: © OpenMapTiles © OpenStreetMap contributors ([ODbL](https://www.openstreetmap.org/copyright))
 - Basemap style: [OSM Liberty](https://github.com/maputnik/osm-liberty) (BSD, derived from Mapbox OSM Bright; design CC BY 3.0)
 - Map icons: [Maki](https://github.com/mapbox/maki) (CC0). Label fonts: [Roboto](https://github.com/googlefonts/roboto) (Apache 2.0)
