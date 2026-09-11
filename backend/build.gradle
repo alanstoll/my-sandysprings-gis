@@ -191,73 +191,113 @@ tasks.register('prepareFloodHazard') {
 	}
 }
 
-// The American Community Survey is tabular, so this layer takes two committed sources: block group
-// geometry from TIGER/Line, and the estimates keyed to it by GEOID. Keeping them apart is what makes
-// adding a table later a column in the csv rather than a re-clip of the geometry. Block groups
-// rather than tracts because this is a city-scale map: 397 of them cover the extent against 156
-// tracts, at a median 1,264 residents against 3,503. Census requires an API key now, but only to
-// refresh: the committed csv is what a fresh clone ingests.
+// The American Community Survey is tabular, so an ACS layer takes two committed sources per
+// geography: polygons from TIGER/Line, and the estimates keyed to them by GEOID. Keeping them apart
+// is what makes adding a table later a column in the csv rather than a re-clip of the geometry.
+//
+// Two geographies rather than one because the survey's reliability and the map's resolution pull
+// against each other, and where the line falls depends on the theme. A count taken over the whole
+// population still holds up at block group; a share of some subset of it does not, because the
+// subset in one block group is a handful of households. Measured over this extent, share-of-subset
+// themes are usable in barely half the block groups and nine tenths of the tracts, so those live on
+// tracts and the rest keep the finer geography. Census requires an API key now, but only to refresh:
+// the committed csv is what a fresh clone ingests.
 def acsYear = 2024
 def acsState = '13'  // Georgia
-def acsTigerZip = new File(dataDir, "raw/tiger/tl_${acsYear}_${acsState}_bg.zip")
-// B03002 is Hispanic or Latino Origin by Race, whose eight categories are mutually exclusive and
-// sum to the total, so every resident lands in exactly one. Margins as well as estimates: they are
-// what say whether the leading category is really ahead.
-def acsVariables = ['001', '003', '004', '005', '006', '007', '008', '009', '012']
-		.collectMany { ["B03002_${it}E".toString(), "B03002_${it}M".toString()] }
+
+def acsVariables = { String table, List<String> numbers ->
+	numbers.collectMany { ["${table}_${it}E".toString(), "${table}_${it}M".toString()] }
+}
+
+def acsGeographies = [
+	[name: 'bg', tiger: 'BG', file: 'bg', keys: ['state', 'county', 'tract', 'block group'],
+	 // a block group query has to spell out every level above it; in=county:* alone is a 400
+	 predicate: "for=block%20group:*&in=state:${acsState}&in=county:*&in=tract:*",
+	 variables:
+			 // B03002 Hispanic or Latino Origin by Race: eight mutually exclusive categories
+			 acsVariables('B03002', ['001', '003', '004', '005', '006', '007', '008', '009', '012']) +
+			 // B01001 Sex by Age, summed into under 18 and 65-and-over on the way into gis
+			 acsVariables('B01001', ['001', '003', '004', '005', '006', '027', '028', '029', '030',
+									 '020', '021', '022', '023', '024', '025',
+									 '044', '045', '046', '047', '048', '049']) +
+			 // B25044 Tenure by Vehicles Available, owner and renter with no vehicle
+			 acsVariables('B25044', ['001', '003', '010'])],
+	[name: 'tract', tiger: 'TRACT', file: 'tract', keys: ['state', 'county', 'tract'],
+	 predicate: "for=tract:*&in=state:${acsState}&in=county:*",
+	 variables:
+			 acsVariables('B19013', ['001']) +   // median household income
+			 acsVariables('B25077', ['001']) +   // median home value
+			 acsVariables('B25064', ['001']) +   // median gross rent
+			 acsVariables('B25003', ['001', '003']) +  // tenure, total and renter-occupied
+			 // B08301 Means of Transportation to Work. These nine leaves are exclusive and sum to
+			 // the total, so every commuter lands in exactly one; the intermediate car and transit
+			 // subtotals are left out because they would double-count.
+			 acsVariables('B08301', ['001', '003', '004', '010', '016', '017', '018', '019', '020', '021'])],
+]
 
 tasks.register('prepareAcs') {
 	group = 'gis'
-	description = "Clips TIGER block groups to the map bounds and fetches ACS ${acsYear} 5-year estimates into data/layers/acs-bg.{geojson,csv}"
+	description = "Clips TIGER geographies to the map bounds and fetches ACS ${acsYear} 5-year estimates into data/layers/acs-*.{geojson,csv}"
 	doLast {
 		def key = System.getenv('CENSUS_API_KEY')
 		if (!key) {
 			throw new GradleException('CENSUS_API_KEY is not set; request one at https://api.census.gov/data/key_signup.html')
 		}
-		if (!acsTigerZip.isFile()) {
-			logger.lifecycle("prepareAcs: downloading ${acsTigerZip.name}")
-			acsTigerZip.parentFile.mkdirs()
-			URI.create("https://www2.census.gov/geo/tiger/TIGER${acsYear}/BG/${acsTigerZip.name}")
-					.toURL().withInputStream { source -> acsTigerZip.withOutputStream { it << source } }
-		}
-		def geometry = new File(dataDir, 'layers/acs-bg.geojson')
-		geometry.delete()
-		runCommand(['docker', 'run', '--rm',
-				'-v', "${dataDir.absolutePath.replace(File.separatorChar, '/' as char)}:/data", gdalImage,
-				'ogr2ogr', '-f', 'GeoJSON', '/data/layers/acs-bg.geojson',
-				"/vsizip//data/raw/tiger/${acsTigerZip.name}", '-clipsrc'] + mapBounds +
-				// GEOID is the join key; the rest of the TIGER schema is land area and centroids
-				['-select', 'GEOID', '-nlt', 'PROMOTE_TO_MULTI', '-t_srs', 'EPSG:4326',
-				'-lco', 'RFC7946=YES', '-lco', 'COORDINATE_PRECISION=6'])
-
-		def wanted = new groovy.json.JsonSlurper().parse(geometry).features
-				.collect { it.properties.GEOID } as Set
-		// A block group query has to spell out every level above it; in=county:* alone is a 400.
-		// Fetching the state and filtering to the clip keeps the county list out of the build, so
-		// widening mapBounds cannot silently drop one the way a hardcoded list would.
-		def url = "https://api.census.gov/data/${acsYear}/acs/acs5?get=${acsVariables.join(',')}" +
-				"&for=block%20group:*&in=state:${acsState}&in=county:*&in=tract:*&key=${key}"
-		def response
-		try {
-			response = new groovy.json.JsonSlurper().parseText(URI.create(url).toURL().getText('UTF-8'))
-		}
-		catch (IOException e) {
-			// the url carries the api key, so it must never reach the build log
-			throw new GradleException("ACS request failed: ${e.message.replace(key, '***')}")
-		}
-		def header = response.head()
-		def geoid = { row -> ['state', 'county', 'tract', 'block group'].collect { row[header.indexOf(it)] }.join('') }
-		def rows = response.tail().findAll { wanted.contains(geoid(it)) }.sort { geoid(it) }
-		if (rows.size() != wanted.size()) {
-			throw new GradleException("ACS covered ${rows.size()} of the ${wanted.size()} block groups in the clip")
-		}
-		new File(dataDir, 'layers/acs-bg.csv').withWriter('UTF-8') { writer ->
-			writer.writeLine((['GEOID'] + acsVariables).join(','))
-			rows.each { row ->
-				writer.writeLine(([geoid(row)] + acsVariables.collect { row[header.indexOf(it)] }).join(','))
+		acsGeographies.each { geography ->
+			def zip = new File(dataDir, "raw/tiger/tl_${acsYear}_${acsState}_${geography.file}.zip")
+			if (!zip.isFile()) {
+				logger.lifecycle("prepareAcs: downloading ${zip.name}")
+				zip.parentFile.mkdirs()
+				URI.create("https://www2.census.gov/geo/tiger/TIGER${acsYear}/${geography.tiger}/${zip.name}")
+						.toURL().withInputStream { source -> zip.withOutputStream { it << source } }
 			}
+			def geometry = new File(dataDir, "layers/acs-${geography.name}.geojson")
+			geometry.delete()
+			runCommand(['docker', 'run', '--rm',
+					'-v', "${dataDir.absolutePath.replace(File.separatorChar, '/' as char)}:/data", gdalImage,
+					'ogr2ogr', '-f', 'GeoJSON', "/data/layers/acs-${geography.name}.geojson",
+					"/vsizip//data/raw/tiger/${zip.name}", '-clipsrc'] + mapBounds +
+					// GEOID is the join key; the rest of the TIGER schema is land area and centroids
+					['-select', 'GEOID', '-nlt', 'PROMOTE_TO_MULTI', '-t_srs', 'EPSG:4326',
+					'-lco', 'RFC7946=YES', '-lco', 'COORDINATE_PRECISION=6'])
+
+			def wanted = new groovy.json.JsonSlurper().parse(geometry).features
+					.collect { it.properties.GEOID } as Set
+			// The api caps a request at 50 variables, and asking for the state rather than a county
+			// list keeps the counties the extent happens to touch out of the build, so widening
+			// mapBounds cannot silently drop one.
+			def estimates = [:].withDefault { [:] }
+			geography.variables.collate(45).each { chunk ->
+				def url = "https://api.census.gov/data/${acsYear}/acs/acs5?get=${chunk.join(',')}" +
+						"&${geography.predicate}&key=${key}"
+				def response
+				try {
+					response = new groovy.json.JsonSlurper().parseText(URI.create(url).toURL().getText('UTF-8'))
+				}
+				catch (IOException e) {
+					// the url carries the api key, so it must never reach the build log
+					throw new GradleException("ACS request failed: ${e.message.replace(key, '***')}")
+				}
+				def header = response.head()
+				response.tail().each { row ->
+					def geoid = geography.keys.collect { row[header.indexOf(it)] }.join('')
+					if (wanted.contains(geoid)) {
+						chunk.each { estimates[geoid][it] = row[header.indexOf(it)] }
+					}
+				}
+			}
+			if (estimates.size() != wanted.size()) {
+				throw new GradleException("ACS covered ${estimates.size()} of the ${wanted.size()} ${geography.name} in the clip")
+			}
+			new File(dataDir, "layers/acs-${geography.name}.csv").withWriter('UTF-8') { writer ->
+				writer.writeLine((['GEOID'] + geography.variables).join(','))
+				estimates.keySet().sort().each { geoid ->
+					writer.writeLine(([geoid] + geography.variables.collect { estimates[geoid][it] ?: '' }).join(','))
+				}
+			}
+			logger.lifecycle("prepareAcs: wrote acs-${geography.name}.geojson and .csv " +
+					"(${estimates.size()} features, ${geography.variables.size()} variables)")
 		}
-		logger.lifecycle("prepareAcs: wrote acs-bg.geojson and acs-bg.csv (${rows.size()} block groups)")
 	}
 }
 

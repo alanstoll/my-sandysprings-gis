@@ -8,14 +8,20 @@
   <body>
     <aside>
       <h1>Sandy Springs GIS</h1>
-      <h2>Layers</h2>
-      <div id="layers"></div>
-      <section id="legend" hidden>
-        <h2>Legend</h2>
+      <label class="field-label" for="view">View</label>
+      <select id="view"></select>
+      <details open>
+        <summary>Layers</summary>
+        <div id="layers"></div>
+      </details>
+      <details id="legend" open hidden>
+        <summary>Legend</summary>
         <ul></ul>
-      </section>
-      <h2>Places</h2>
-      <ul id="places"></ul>
+      </details>
+      <details>
+        <summary>Places</summary>
+        <ul id="places"></ul>
+      </details>
     </aside>
     <div id="map"></div>
     <script type="module" src="/src/main.ts"></script>

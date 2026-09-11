@@ -1,10 +1,10 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './style.css'
 import { MapLibreMap, NavigationControl, addProtocol, setWorkerUrl } from 'maplibre-gl'
-import type { StyleSpecification } from 'maplibre-gl'
+import type { RasterTileSource, StyleSpecification } from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import basemapStyle from './basemap-style.json'
-import { basemapTree, createLayerPanel } from './layer-tree'
+import { basemapTree, createLayerPanel, descendantLayers } from './layer-tree'
 import type { LayerNode, LegendEntry } from './layer-tree'
 import { createIdentify } from './identify'
 
@@ -47,19 +47,17 @@ map.addControl(new NavigationControl({ visualizePitch: true }), 'top-left')
 
 const WMS = '/geoserver/sandysprings/wms'
 
-const wms = (layers: string) =>
-  WMS +
-  '?service=WMS&version=1.1.1&request=GetMap&layers=' +
-  layers +
+const wms = (layers: string, styles = '') =>
+  `${WMS}?service=WMS&version=1.1.1&request=GetMap&layers=${layers}&styles=${styles}` +
   '&bbox={bbox-epsg-3857}&width=512&height=512&srs=EPSG:3857&format=image/png&transparent=true'
 
 // The SLD is the only place a layer's classes, their colours and their labels are written down,
 // so ask GeoServer what they are instead of restating them here. The swatches come back from the
 // same renderer that draws the map, so a style change reaches the legend with nothing to keep in
 // step. 28px: GeoServer's 20px default leaves the city limit's 3px dashes unreadable.
-const legendFor = async (layer: string): Promise<LegendEntry[]> => {
+const legendFor = async (layer: string, style = ''): Promise<LegendEntry[]> => {
   const request = (params: string) =>
-    `${WMS}?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=${layer}&${params}`
+    `${WMS}?service=WMS&version=1.1.1&request=GetLegendGraphic&layer=${layer}&style=${style}&${params}`
   const [{ rules }] = await fetch(request('format=application/json')).then((r) => r.json()).then((b) => b.Legend)
   return rules.map((rule: { name: string; title?: string }) => ({
     name: rule.name,
@@ -74,17 +72,75 @@ const legendFor = async (layer: string): Promise<LegendEntry[]> => {
 // it; if the style ever ships no roads at all this falls back to undefined, meaning on top.
 const roadsUp = style.layers.find((l) => (l as { 'source-layer'?: string })['source-layer'] === 'transportation')?.id
 
+// The ACS layers and what each theme draws on. A theme names the geography it belongs to because
+// the survey decides that, not the map: a count taken over everyone holds up on block groups, a
+// share of some subset of them only on tracts. Ids are the GeoServer style names, so a saved view
+// only has to remember strings that already exist on both sides.
+type AcsLayer = 'acs_bg' | 'acs_tract'
+type Theme = { style: string; label: string; layer: AcsLayer }
+const ACS_LAYERS: AcsLayer[] = ['acs_bg', 'acs_tract']
+
+const THEMES: Theme[] = [
+  { style: 'acs_race', label: 'Predominant race & ethnicity', layer: 'acs_bg' },
+  { style: 'acs_age_65', label: 'Residents aged 65 and over', layer: 'acs_bg' },
+  { style: 'acs_age_under_18', label: 'Residents under 18', layer: 'acs_bg' },
+  { style: 'acs_no_vehicle', label: 'Households with no vehicle', layer: 'acs_bg' },
+  { style: 'acs_income', label: 'Median household income', layer: 'acs_tract' },
+  { style: 'acs_home_value', label: 'Median home value', layer: 'acs_tract' },
+  { style: 'acs_rent', label: 'Median gross rent', layer: 'acs_tract' },
+  { style: 'acs_renter', label: 'Renter-occupied homes', layer: 'acs_tract' },
+  { style: 'acs_commute_home', label: 'Worked from home', layer: 'acs_tract' },
+  { style: 'acs_commute_car', label: 'Commuted without driving alone', layer: 'acs_tract' },
+]
+
+/**
+ * A named starting point: which nodes the panel offers, which of them start switched on, and which
+ * census theme is drawn. Availability and visibility are separate because they answer different
+ * questions -- what belongs on this map at all, and what you want to see first. "All layers" is the
+ * one view that withholds nothing, which is what makes it different from "City map" despite the two
+ * switching on the same things.
+ *
+ * A view names nodes rather than layers so it does not have to know that the basemap is a hundred
+ * of them, and styles rather than layers for the theme so it never has to say which geography a
+ * theme lives on.
+ */
+type View = { id: string; label: string; available?: string[]; on: string[]; theme: string | null }
+
+const VIEWS: View[] = [
+  { id: 'all', label: 'All layers', on: ['city_limit', 'basemap'], theme: null },
+  { id: 'city', label: 'City map', available: ['city_limit', 'basemap'],
+    on: ['city_limit', 'basemap'], theme: null },
+  { id: 'race', label: 'Race & ethnicity', available: ['census', 'city_limit', 'basemap'],
+    on: ['city_limit', 'basemap'], theme: 'acs_race' },
+  // flood zones earn their place here and nowhere else so far: what a home is worth and what it
+  // costs to insure are the same conversation
+  { id: 'home_value', label: 'Median home value',
+    available: ['census', 'flood_zone', 'city_limit', 'basemap'],
+    on: ['city_limit', 'flood_zone', 'basemap'], theme: 'acs_home_value' },
+  { id: 'income', label: 'Median household income', available: ['census', 'city_limit', 'basemap'],
+    on: ['city_limit', 'basemap'], theme: 'acs_income' },
+]
+
+// Filled in before the map is: the sidebar has no reason to wait on tiles to show its own controls.
+const chooser = document.querySelector<HTMLSelectElement>('#view')!
+chooser.replaceChildren(...VIEWS.map((view) => new Option(view.label, view.id)))
+
+const share = (value: unknown) => (value === null || value === undefined ? '-' : `${Number(value).toFixed(1)}%`)
+const dollars = (value: unknown) =>
+  value === null || value === undefined ? 'Not published' : '$' + Number(value).toLocaleString()
+
 map.on('load', async () => {
-  // Added before flood_zone so it sits under it: this one covers the whole extent, and on top it
-  // would wash the flood zones out. Its style is the layer's default, so no styles parameter yet;
-  // a second ACS theme is what makes the WMS styles parameter worth threading through.
-  map.addSource('acs_bg', {
-    type: 'raster',
-    tiles: [wms('sandysprings:acs_bg')],
-    tileSize: 512,
-    attribution: 'Demographics: U.S. Census Bureau ACS 2020-2024 (public domain)',
-  })
-  map.addLayer({ id: 'acs_bg', type: 'raster', source: 'acs_bg' }, roadsUp)
+  // One source per geography, both anchored under the roads so you can see what is inside them.
+  // Only ever one is visible: two choropleths at once just occlude each other.
+  for (const layer of ACS_LAYERS) {
+    map.addSource(layer, {
+      type: 'raster',
+      tiles: [wms(`sandysprings:${layer}`)],
+      tileSize: 512,
+      attribution: 'Demographics: U.S. Census Bureau ACS 2020-2024 (public domain)',
+    })
+    map.addLayer({ id: layer, type: 'raster', source: layer, layout: { visibility: 'none' } }, roadsUp)
+  }
 
   // its own WMS request rather than another layer on the city_limit one, so the panel can
   // toggle it on its own
@@ -101,30 +157,94 @@ map.on('load', async () => {
     type: 'raster',
     tiles: [wms('sandysprings:city_limit,sandysprings:place')],
     tileSize: 512,
-    attribution: 'City limits © City of Sandy Springs GIS Department (CC BY 4.0)',
+    attribution: 'City limits \u00a9 City of Sandy Springs GIS Department (CC BY 4.0)',
   })
   // the boundary stays on top of everything; it is a reference line, not thematic data
   map.addLayer({ id: 'city_limit', type: 'raster', source: 'city_limit' })
 
-  const [cityLimit, floodZone, acsRace] = await Promise.all([
+  const [cityLimit, floodZone] = await Promise.all([
     legendFor('sandysprings:city_limit'),
     legendFor('sandysprings:flood_zone'),
-    legendFor('sandysprings:acs_bg'),
   ])
 
-  // The SLD already names every category; reuse those labels rather than spelling them out again,
-  // so the popup and the legend cannot disagree. Rule names are the category keys in the data.
-  const categories = Object.fromEntries(acsRace.map(({ name, label }) => [name, label]))
+  // The race style already names every category; reuse its labels rather than spelling them out
+  // again, so the popup and the legend cannot disagree. Rule names are the category keys.
+  const categories = Object.fromEntries(
+    (await legendFor('sandysprings:acs_bg', 'acs_race')).map(({ name, label }) => [name, label]),
+  )
 
-  const nodes: LayerNode[] = [
+  const censusNode: LayerNode = {
+    id: 'census',
+    label: 'Census (ACS 2020-2024)',
+    layers: [...ACS_LAYERS],
+    themes: THEMES.map(({ style, label }) => ({ style, label })),
+    theme: null,
+    // Both geographies answer clicks, gated on whichever one the theme has made visible. They hang
+    // off this node rather than getting checkboxes of their own, which would only fight the radios.
+    identify: [
+      {
+        layer: 'acs_bg',
+        source: 'sandysprings:acs_bg',
+        properties: ['geoid', 'population', 'predominant', 'runner_up', 'ambiguous',
+          'age_65_plus', 'age_under_18', 'no_vehicle'],
+        section: (p) => {
+          const rows = [
+            { label: 'Population', value: Number(p.population).toLocaleString() },
+            { label: 'Largest group', value: categories[String(p.predominant)] ?? String(p.predominant) },
+            { label: 'Then', value: categories[String(p.runner_up)] ?? String(p.runner_up) },
+          ]
+          // the one thing the fill cannot say: whether the order of those two is real
+          if (p.ambiguous) {
+            rows.push({ label: 'Margin of error', value: 'Too close to separate these two' })
+          }
+          rows.push(
+            { label: 'Aged 65 and over', value: share(p.age_65_plus) },
+            { label: 'Under 18', value: share(p.age_under_18) },
+            { label: 'No vehicle', value: share(p.no_vehicle) },
+          )
+          return { title: `Block group ${p.geoid}`, body: { kind: 'table', rows } }
+        },
+      },
+      {
+        layer: 'acs_tract',
+        source: 'sandysprings:acs_tract',
+        properties: ['geoid', 'income', 'home_value', 'gross_rent', 'renter', 'drove_alone',
+          'carpooled', 'transit', 'walked', 'bicycle', 'other_mode', 'worked_at_home'],
+        section: (p) => ({
+          title: `Tract ${p.geoid}`,
+          body: {
+            kind: 'table',
+            rows: [
+              { label: 'Median household income', value: dollars(p.income) },
+              { label: 'Median home value', value: dollars(p.home_value) },
+              { label: 'Median gross rent', value: dollars(p.gross_rent) },
+              { label: 'Renter-occupied', value: share(p.renter) },
+              // the full commute split, which no single style can show
+              { label: 'Drove alone', value: share(p.drove_alone) },
+              { label: 'Carpooled', value: share(p.carpooled) },
+              { label: 'Public transport', value: share(p.transit) },
+              { label: 'Walked', value: share(p.walked) },
+              { label: 'Bicycle', value: share(p.bicycle) },
+              { label: 'Other means', value: share(p.other_mode) },
+              { label: 'Worked from home', value: share(p.worked_at_home) },
+            ],
+          },
+        }),
+      },
+    ],
+  }
+
+  const allNodes: LayerNode[] = [
     // no identify: the city limit is a reference boundary, and as a polygon it would answer every
     // click inside the city with the same row
-    { label: 'City limits', layers: ['city_limit'], legend: cityLimit },
+    { id: 'city_limit', label: 'City limits', layers: ['city_limit'], legend: cityLimit },
     {
+      id: 'flood_zone',
       label: 'Flood zones',
       layers: ['flood_zone'],
       legend: floodZone,
-      identify: {
+      identify: [{
+        layer: 'flood_zone',
         source: 'sandysprings:flood_zone',
         properties: ['zone', 'subtype', 'sfha'],
         section: (p) => ({
@@ -138,38 +258,57 @@ map.on('load', async () => {
             ],
           },
         }),
-      },
+      }],
     },
-    {
-      label: 'Predominant race & ethnicity',
-      layers: ['acs_bg'],
-      legend: acsRace,
-      identify: {
-        source: 'sandysprings:acs_bg',
-        properties: ['geoid', 'population', 'predominant', 'runner_up', 'ambiguous'],
-        section: (p) => {
-          const rows = [
-            { label: 'Population', value: Number(p.population).toLocaleString() },
-            { label: 'Largest group', value: categories[String(p.predominant)] },
-            { label: 'Then', value: categories[String(p.runner_up)] },
-          ]
-          // the one thing the fill cannot say: whether the order of those two is real
-          if (p.ambiguous) {
-            rows.push({ label: 'Margin of error', value: 'Too close to separate these two' })
-          }
-          return { title: `Block group ${p.geoid}`, body: { kind: 'table', rows } }
-        },
-      },
-    },
-    basemapTree(style),
+    censusNode,
+    { ...basemapTree(style), id: 'basemap' },
   ]
 
-  const panel = {
+  const elements = {
     layers: document.querySelector<HTMLElement>('#layers')!,
     legend: document.querySelector<HTMLElement>('#legend')!,
   }
-  createLayerPanel(map, panel, nodes)
-  createIdentify(map, WMS, nodes)
+  let panel = createLayerPanel(map, elements, allNodes)
+
+  // Repointing the source beats keeping ten layers alive, one per theme. Split from setTheme so a
+  // view can move the map and rebuild the panel once, rather than refresh a panel it is replacing.
+  const applyTheme = async (style: string | null) => {
+    const theme = THEMES.find((candidate) => candidate.style === style) ?? null
+    censusNode.theme = theme?.style ?? null
+    for (const layer of ACS_LAYERS) {
+      map.setLayoutProperty(layer, 'visibility', theme?.layer === layer ? 'visible' : 'none')
+    }
+    if (theme) {
+      map.getSource<RasterTileSource>(theme.layer)!.setTiles([wms(`sandysprings:${theme.layer}`, theme.style)])
+    }
+    censusNode.legend = theme ? await legendFor(`sandysprings:${theme.layer}`, theme.style) : []
+  }
+
+  // The two entry points anything else drives the map through: a radio now, a gallery tile later.
+  const setTheme = async (style: string | null) => {
+    await applyTheme(style)
+    panel.refresh()
+  }
+  censusNode.onTheme = setTheme
+
+  const setView = async (id: string) => {
+    const view = VIEWS.find((candidate) => candidate.id === id) ?? VIEWS[0]
+    const offered = allNodes.filter((node) => !view.available || view.available.includes(node.id!))
+    // Everything is settled from the view rather than adjusted, including the nodes it withholds:
+    // a layer left visible with no control to switch it off would be stuck on.
+    for (const node of allNodes) {
+      const on = view.on.includes(node.id!) && offered.includes(node)
+      for (const layer of descendantLayers(node)) {
+        map.setLayoutProperty(layer, 'visibility', on ? 'visible' : 'none')
+      }
+    }
+    await applyTheme(offered.includes(censusNode) ? view.theme : null)
+    panel = createLayerPanel(map, elements, offered)
+  }
+
+  createIdentify(map, WMS, allNodes)
+  chooser.addEventListener('change', () => setView(chooser.value))
+  await setView(chooser.value)
 })
 
 const list = document.querySelector<HTMLUListElement>('#places')!

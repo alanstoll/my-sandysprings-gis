@@ -49,4 +49,41 @@ class BackendApplicationTests {
 			.isEqualTo("white");
 	}
 
+	@Test
+	void derivesSharesFromAgeAndVehicleCounts() {
+		// the fixture's first block group is 12 bands of 25 over 65 and 8 of 25 under 18, of 1000
+		assertThat(jdbc.sql("select age_65_plus from gis.acs_bg where geoid = '130890000011'")
+			.query(Double.class).single()).isEqualTo(30.0);
+		assertThat(jdbc.sql("select age_under_18 from gis.acs_bg where geoid = '130890000011'")
+			.query(Double.class).single()).isEqualTo(20.0);
+		// households with no vehicle is owners plus renters, 40 of 400
+		assertThat(jdbc.sql("select no_vehicle from gis.acs_bg where geoid = '130890000011'")
+			.query(Double.class).single()).isEqualTo(10.0);
+	}
+
+	@Test
+	void turnsSuppressedMediansIntoNulls() {
+		assertThat(jdbc.sql("select income from gis.acs_tract where geoid = '13089000001'")
+			.query(Integer.class).single()).isEqualTo(120000);
+		// the ACS writes an unavailable median as -666666666, which must not reach the map as a value
+		assertThat(jdbc.sql("select count(*) from gis.acs_tract where geoid = '13089000002'"
+				+ " and income is null and home_value is null and gross_rent is null")
+			.query(Long.class).single()).isEqualTo(1);
+	}
+
+	@Test
+	void splitsCommuteModesThatSumToTheWhole() {
+		assertThat(jdbc.sql("select drove_alone from gis.acs_tract where geoid = '13089000001'")
+			.query(Double.class).single()).isEqualTo(60.0);
+		assertThat(jdbc.sql("select worked_at_home from gis.acs_tract where geoid = '13089000001'")
+			.query(Double.class).single()).isEqualTo(10.0);
+		// not driving alone is the complement, and the seven modes account for every commuter
+		assertThat(jdbc.sql("select not_drove_alone from gis.acs_tract where geoid = '13089000001'")
+			.query(Double.class).single()).isEqualTo(40.0);
+		assertThat(jdbc
+			.sql("select count(*) from gis.acs_tract where abs(drove_alone + carpooled + transit"
+					+ " + walked + bicycle + other_mode + worked_at_home - 100) > 0.01")
+			.query(Long.class).single()).isZero();
+	}
+
 }

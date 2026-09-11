@@ -1,5 +1,7 @@
 package com.alanstoll.sandysprings;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +34,10 @@ class GeoServerPublisher implements ApplicationRunner {
 
 	private static final String STYLES = "/workspaces/sandysprings/styles";
 
+	private static final List<String> ACS_THEMES = List.of("acs_race", "acs_age_65", "acs_age_under_18",
+			"acs_no_vehicle", "acs_income", "acs_home_value", "acs_rent", "acs_renter",
+			"acs_commute_home", "acs_commute_car");
+
 	private final RestClient rest;
 
 	GeoServerPublisher(RestClient.Builder builder, @Value("${sandysprings.geoserver.url}") String url,
@@ -46,17 +52,21 @@ class GeoServerPublisher implements ApplicationRunner {
 	public void run(ApplicationArguments args) {
 		ensure("/workspaces", "sandysprings", "geoserver/workspace.json");
 		ensure("/workspaces/sandysprings/datastores", "postgis", "geoserver/datastore.json");
-		ensure(FEATURETYPES, "place", "geoserver/featuretype-place.json");
-		ensure(FEATURETYPES, "city_limit", "geoserver/featuretype-city-limit.json");
-		ensure(FEATURETYPES, "flood_zone", "geoserver/featuretype-flood-zone.json");
-		ensure(FEATURETYPES, "acs_bg", "geoserver/featuretype-acs-bg.json");
+		ensureFeatureType("place", "geoserver/featuretype-place.json");
+		ensureFeatureType("city_limit", "geoserver/featuretype-city-limit.json");
+		ensureFeatureType("flood_zone", "geoserver/featuretype-flood-zone.json");
+		ensureFeatureType("acs_bg", "geoserver/featuretype-acs-bg.json");
+		ensureFeatureType("acs_tract", "geoserver/featuretype-acs-tract.json");
 		ensureStyle("city_limit", "geoserver/style-city-limit.sld");
 		ensureStyle("flood_zone", "geoserver/style-flood-zone.sld");
-		// one style per theme on the one acs_bg layer: the client picks with the WMS styles parameter
-		ensureStyle("acs_race", "geoserver/style-acs-race.sld");
+		// One style per theme across the two acs layers; the client picks with the WMS styles
+		// parameter. Which layer a theme belongs to is the frontend's business, not GeoServer's:
+		// here they are just styles that happen to match one schema or the other.
+		ACS_THEMES.forEach(theme -> ensureStyle(theme, "geoserver/style-" + theme.replace('_', '-') + ".sld"));
 		update("/layers/sandysprings:city_limit", "geoserver/layer-city-limit.json");
 		update("/layers/sandysprings:flood_zone", "geoserver/layer-flood-zone.json");
 		update("/layers/sandysprings:acs_bg", "geoserver/layer-acs-bg.json");
+		update("/layers/sandysprings:acs_tract", "geoserver/layer-acs-tract.json");
 	}
 
 	private void ensure(String collection, String name, String body) {
@@ -67,6 +77,27 @@ class GeoServerPublisher implements ApplicationRunner {
 		rest.post().uri(collection).contentType(MediaType.APPLICATION_JSON).body(new ClassPathResource(body))
 			.retrieve().toBodilessEntity();
 		log.info("GeoServer {} created", name);
+	}
+
+	/**
+	 * Recalculates rather than skips when the feature type already exists. GeoServer stores a
+	 * feature type's attribute list at creation, so a migration that adds a column leaves it
+	 * holding the old one, and every style filtering on the new column fails at render time with
+	 * nothing to show for it but a ServiceException in place of the tile.
+	 */
+	private void ensureFeatureType(String name, String body) {
+		String resource = FEATURETYPES + "/" + name;
+		if (exists(resource)) {
+			rest.put()
+				.uri(uri -> uri.path(resource).queryParam("recalculate", "attributes,nativebbox,latlonbbox").build())
+				.contentType(MediaType.APPLICATION_JSON).body(new ClassPathResource(body))
+				.retrieve().toBodilessEntity();
+			log.info("GeoServer featuretype {} recalculated", name);
+			return;
+		}
+		rest.post().uri(FEATURETYPES).contentType(MediaType.APPLICATION_JSON)
+			.body(new ClassPathResource(body)).retrieve().toBodilessEntity();
+		log.info("GeoServer featuretype {} created", name);
 	}
 
 	private void ensureStyle(String name, String sld) {

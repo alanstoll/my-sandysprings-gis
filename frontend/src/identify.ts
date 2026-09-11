@@ -17,6 +17,8 @@ export type PopupSection = { title: string; body: PopupBody }
 
 /** How a layer answers a click. */
 export type Identify = {
+	/** The map layer whose visibility decides whether this is asked at all. */
+	layer: string
 	/** The GeoServer layer to query. */
 	source: string
 	/**
@@ -28,8 +30,12 @@ export type Identify = {
 	section: (properties: Record<string, unknown>) => PopupSection | null
 }
 
-/** Structural, so LayerNode satisfies it without this module knowing about the layer tree. */
-type Queryable = { layers?: string[]; identify?: Identify }
+/**
+ * Structural, so LayerNode satisfies it without this module knowing about the layer tree. A node
+ * may answer for more than one layer: the census group owns both geographies and only ever shows
+ * one, which is not a reason to give each its own checkbox.
+ */
+type Queryable = { identify?: Identify[] }
 
 // GetFeatureInfo wants a GetMap and a pixel inside it. Rather than reproduce the viewport, which a
 // pitched map does not map linearly onto the canvas, ask for a small square centred on the click:
@@ -68,10 +74,7 @@ function render(sections: PopupSection[]): HTMLElement {
  * nothing; a click with nothing anywhere opens no popup.
  */
 export function createIdentify(map: MapLibreMap, wms: string, nodes: Queryable[]): void {
-	const queryable = nodes.filter(
-		(node): node is Queryable & { identify: Identify; layers: string[] } =>
-			Boolean(node.identify && node.layers?.length),
-	)
+	const queryable = nodes.flatMap((node) => node.identify ?? [])
 	if (!queryable.length) return
 	const popup = new Popup({ maxWidth: '340px' })
 
@@ -80,32 +83,32 @@ export function createIdentify(map: MapLibreMap, wms: string, nodes: Queryable[]
 		// Read it off the map rather than off the argument, so it cannot drift from what is on screen.
 		const order = map.getStyle().layers.map((layer) => layer.id)
 		const asked = queryable
-			.filter((node) => map.getLayoutProperty(node.layers[0], 'visibility') !== 'none')
-			.sort((a, b) => order.indexOf(b.layers[0]) - order.indexOf(a.layers[0]))
+			.filter((entry) => map.getLayer(entry.layer) && map.getLayoutProperty(entry.layer, 'visibility') !== 'none')
+			.sort((a, b) => order.indexOf(b.layer) - order.indexOf(a.layer))
 		if (!asked.length) return
 
 		const { lng, lat } = event.lngLat
 		const at = map.project(event.lngLat)
 		const dx = Math.abs(map.unproject([at.x + RADIUS, at.y]).lng - lng)
 		const dy = Math.abs(map.unproject([at.x, at.y - RADIUS]).lat - lat)
-		const layers = asked.map((node) => node.identify.source).join(',')
+		const layers = asked.map((entry) => entry.source).join(',')
 		const url =
 			`${wms}?service=WMS&version=1.1.1&request=GetFeatureInfo&info_format=application/json` +
 			`&layers=${layers}&query_layers=${layers}&feature_count=10&srs=EPSG:4326` +
 			`&bbox=${lng - dx},${lat - dy},${lng + dx},${lat + dy}` +
 			`&width=${RADIUS * 2 + 1}&height=${RADIUS * 2 + 1}&x=${RADIUS}&y=${RADIUS}` +
 			// one parenthesised group per queried layer, in the same order as query_layers
-			`&propertyName=${asked.map((node) => `(${node.identify.properties.join(',')})`).join('')}`
+			`&propertyName=${asked.map((entry) => `(${entry.properties.join(',')})`).join('')}`
 
 		const features: { id?: string; properties: Record<string, unknown> }[] = await fetch(url)
 			.then((response) => response.json())
 			.then((collection) => collection.features ?? [])
-		const sections = asked.flatMap((node) => {
+		const sections = asked.flatMap((entry) => {
 			// GeoServer prefixes a feature's id with the layer that produced it, which is the only
 			// thing tying a feature in a mixed response back to the layer that answered
-			const prefix = node.identify.source.split(':').pop() + '.'
+			const prefix = entry.source.split(':').pop() + '.'
 			const hit = features.find((feature) => feature.id?.startsWith(prefix))
-			const section = hit && node.identify.section(hit.properties)
+			const section = hit && entry.section(hit.properties)
 			return section ? [section] : []
 		})
 		if (!sections.length) {

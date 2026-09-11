@@ -4,13 +4,28 @@ import type { Identify } from './identify'
 /** A row a node contributes to the legend while any of its own layers is on the map. */
 export type LegendEntry = { name: string; label: string; swatch: string }
 
+/** One mutually exclusive choice within a node's theme group. */
+export type ThemeOption = { style: string; label: string }
+
 /** A node toggles its own layers plus every layer beneath it. */
 export type LayerNode = {
+  /** Stable handle for a view to name this node by; only top-level nodes need one. */
+  id?: string
   label: string
   layers?: string[]
   children?: LayerNode[]
   legend?: LegendEntry[]
-  identify?: Identify
+  identify?: Identify[]
+  /**
+   * Mutually exclusive alternatives, drawn as radios with a "None" rather than checkboxes, because
+   * two choropleths on screen at once only occlude each other. A node with these has no checkbox of
+   * its own: the choice is the control.
+   */
+  themes?: ThemeOption[]
+  /** The chosen style, or null for none. The panel reads this on every refresh. */
+  theme?: string | null
+  /** Called with the chosen style, or null. */
+  onTheme?: (style: string | null) => void
 }
 
 /**
@@ -69,27 +84,42 @@ export function basemapTree(style: StyleSpecification): LayerNode {
   })!
 }
 
-const descendantLayers = (node: LayerNode): string[] => [
+/** A node's own layers plus every layer beneath it. */
+export const descendantLayers = (node: LayerNode): string[] => [
   ...(node.layers ?? []),
   ...(node.children ?? []).flatMap(descendantLayers),
 ]
 
-/** Renders a checkbox tree that drives layer visibility on the map, plus the legend it implies. */
+/**
+ * Renders a checkbox tree that drives layer visibility on the map, plus the legend it implies.
+ * Returns a refresh, so anything that changes what is on the map without going through a checkbox
+ * can bring the panel back in step.
+ *
+ * Every group starts collapsed, so the panel opens on the list of what this view offers rather than
+ * on a hundred basemap checkboxes. Only a view rebuilds the panel; switching theme refreshes it,
+ * which is what keeps a group you opened from snapping shut underneath you.
+ */
 export function createLayerPanel(
   map: MapLibreMap,
   panel: { layers: HTMLElement; legend: HTMLElement },
   nodes: LayerNode[],
-): void {
+): { refresh: () => void } {
   const boxes: { node: LayerNode; input: HTMLInputElement }[] = []
+  const radios: { node: LayerNode; input: HTMLInputElement; style: string | null }[] = []
 
   const isVisible = (id: string) => map.getLayoutProperty(id, 'visibility') !== 'none'
+
+  // Every node, not just the ones that got a checkbox: a theme group contributes a legend too.
+  const everyNode = (function flatten(list: LayerNode[]): LayerNode[] {
+    return list.flatMap((node) => [node, ...flatten(node.children ?? [])])
+  })(nodes)
 
   // A node's own layers, not its descendants': a group's entries would otherwise appear as soon
   // as anything under it was on.
   const refreshLegend = () => {
-    const entries = boxes
-      .filter(({ node }) => node.legend?.length && (node.layers ?? []).some(isVisible))
-      .flatMap(({ node }) => node.legend!)
+    const entries = everyNode
+      .filter((node) => node.legend?.length && (node.layers ?? []).some(isVisible))
+      .flatMap((node) => node.legend!)
     panel.legend.querySelector('ul')!.replaceChildren(
       ...entries.map(({ label, swatch }) => {
         const li = document.createElement('li')
@@ -110,12 +140,48 @@ export function createLayerPanel(
       input.checked = shown > 0
       input.indeterminate = shown > 0 && shown < ids.length
     }
+    for (const { node, input, style } of radios) {
+      input.checked = (node.theme ?? null) === style
+    }
     refreshLegend()
+  }
+
+  // Each group needs its own radio name or two groups on the page would share one selection.
+  let groups = 0
+  const buildThemes = (node: LayerNode): HTMLLIElement => {
+    const name = `theme-${groups++}`
+    const option = (style: string | null, text: string) => {
+      const row = document.createElement('li')
+      const label = document.createElement('label')
+      const input = document.createElement('input')
+      input.type = 'radio'
+      input.name = name
+      input.addEventListener('change', () => {
+        if (input.checked) node.onTheme?.(style)
+      })
+      label.append(input, document.createTextNode(' ' + text))
+      row.append(label)
+      radios.push({ node, input, style })
+      return row
+    }
+    const list = document.createElement('ul')
+    list.append(option(null, 'None'), ...node.themes!.map((t) => option(t.style, t.label)))
+    const details = document.createElement('details')
+    const summary = document.createElement('summary')
+    summary.textContent = node.label
+    details.append(summary, list)
+    const li = document.createElement('li')
+    li.append(details)
+    return li
   }
 
   const build = (list: LayerNode[]): HTMLUListElement => {
     const ul = document.createElement('ul')
     for (const node of list) {
+      if (node.themes?.length) {
+        ul.append(buildThemes(node))
+        continue
+      }
       const li = document.createElement('li')
       const label = document.createElement('label')
       const input = document.createElement('input')
@@ -131,7 +197,6 @@ export function createLayerPanel(
 
       if (node.children?.length) {
         const details = document.createElement('details')
-        details.open = true
         const summary = document.createElement('summary')
         summary.append(label)
         details.append(summary, build(node.children))
@@ -146,4 +211,5 @@ export function createLayerPanel(
 
   panel.layers.replaceChildren(build(nodes))
   refresh()
+  return { refresh }
 }

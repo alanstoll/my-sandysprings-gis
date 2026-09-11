@@ -29,13 +29,45 @@ leader as (
     from category
     where place <= 2
     group by geoid
+),
+-- B01001 is sex by five-year band, so an age group is a sum of bands across both sexes, and its
+-- margin is the root of the summed squares of theirs.
+age as (
+    select d.geoid,
+           d.b01001_001e::numeric as people,
+           d.b01001_001m::numeric as people_moe,
+           d.b01001_003e::numeric + d.b01001_004e::numeric + d.b01001_005e::numeric + d.b01001_006e::numeric + d.b01001_027e::numeric + d.b01001_028e::numeric + d.b01001_029e::numeric + d.b01001_030e::numeric as under_18,
+           sqrt(power(d.b01001_003m::numeric, 2) + power(d.b01001_004m::numeric, 2) + power(d.b01001_005m::numeric, 2) + power(d.b01001_006m::numeric, 2) + power(d.b01001_027m::numeric, 2) + power(d.b01001_028m::numeric, 2) + power(d.b01001_029m::numeric, 2) + power(d.b01001_030m::numeric, 2)) as under_18_moe,
+           d.b01001_020e::numeric + d.b01001_021e::numeric + d.b01001_022e::numeric + d.b01001_023e::numeric + d.b01001_024e::numeric + d.b01001_025e::numeric + d.b01001_044e::numeric + d.b01001_045e::numeric + d.b01001_046e::numeric + d.b01001_047e::numeric + d.b01001_048e::numeric + d.b01001_049e::numeric as plus_65,
+           sqrt(power(d.b01001_020m::numeric, 2) + power(d.b01001_021m::numeric, 2) + power(d.b01001_022m::numeric, 2) + power(d.b01001_023m::numeric, 2) + power(d.b01001_024m::numeric, 2) + power(d.b01001_025m::numeric, 2) + power(d.b01001_044m::numeric, 2) + power(d.b01001_045m::numeric, 2) + power(d.b01001_046m::numeric, 2) + power(d.b01001_047m::numeric, 2) + power(d.b01001_048m::numeric, 2) + power(d.b01001_049m::numeric, 2)) as plus_65_moe
+    from staging.acs_bg_data_raw d
+),
+-- B25044 counts vehicles by tenure, so households with none is owners plus renters
+vehicle as (
+    select d.geoid,
+           d.b25044_001e::numeric as households,
+           d.b25044_001m::numeric as households_moe,
+           d.b25044_003e::numeric + d.b25044_010e::numeric as none,
+           sqrt(power(d.b25044_003m::numeric, 2) + power(d.b25044_010m::numeric, 2)) as none_moe
+    from staging.acs_bg_data_raw d
 )
 insert into gis.acs_bg (geoid, population, white, black, aian, asian, nhpi, other, multiracial,
-                        hispanic, predominant, runner_up, ambiguous, geom)
+                        hispanic, predominant, runner_up, ambiguous,
+                        age_65_plus, age_65_plus_moe, age_under_18, age_under_18_moe,
+                        no_vehicle, no_vehicle_moe, geom)
 select d.geoid, d.b03002_001e::integer, d.b03002_003e::integer, d.b03002_004e::integer,
        d.b03002_005e::integer, d.b03002_006e::integer, d.b03002_007e::integer,
        d.b03002_008e::integer, d.b03002_009e::integer, d.b03002_012e::integer,
-       l.predominant, l.runner_up, l.ambiguous, g.geom
+       l.predominant, l.runner_up, l.ambiguous,
+       case when a.people > 0 then a.plus_65 / a.people * 100 end,
+       gis.share_moe(a.plus_65, a.plus_65_moe, a.people, a.people_moe),
+       case when a.people > 0 then a.under_18 / a.people * 100 end,
+       gis.share_moe(a.under_18, a.under_18_moe, a.people, a.people_moe),
+       case when v.households > 0 then v.none / v.households * 100 end,
+       gis.share_moe(v.none, v.none_moe, v.households, v.households_moe),
+       g.geom
 from staging.acs_bg_data_raw d
 join leader l on l.geoid = d.geoid
+join age a on a.geoid = d.geoid
+join vehicle v on v.geoid = d.geoid
 join staging.acs_bg_geom_raw g on g.geoid = d.geoid;

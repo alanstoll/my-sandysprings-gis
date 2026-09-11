@@ -1,19 +1,71 @@
 html, body { height: 100%; margin: 0; font-family: system-ui, sans-serif; }
 body { display: flex; }
-aside { width: 16rem; padding: 1rem; overflow: auto; }
-#map { flex: 1; }
+#map { flex: 1; min-width: 0; }
 
-aside h2 { font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; color: #666; margin: 1.25rem 0 .4rem; }
-#layers ul { list-style: none; margin: 0; padding-left: 1.1rem; }
+aside {
+  flex: none;
+  width: 17rem;
+  padding: 1rem;
+  overflow-y: auto;
+  font-size: .875rem;
+  line-height: 1.4;
+  background: #fcfcfc;
+  border-right: 1px solid #e5e5e5;
+}
+
+aside h1 { font-size: 1rem; margin: 0 0 .9rem; }
+
+/* Section headings: the view label reads as one even though it labels a control rather than a
+   region, so the two share everything but the element. */
+.field-label,
+aside > details > summary { font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: #777; font-weight: 600; }
+.field-label { display: block; margin-bottom: .3rem; }
+
+aside > details { margin-top: .9rem; padding-top: .8rem; border-top: 1px solid #ececec; }
+aside > details > summary { margin-bottom: .5rem; }
+
+aside > select { width: 100%; padding: .35rem; font: inherit; background: #fff; border: 1px solid #d0d0d0; border-radius: 3px; }
+
+/* The native marker is laid outside the content box, so at the top level, where the list has no
+   padding to sit in, it hangs off the edge of the panel. Draw one inside the flow instead. */
+summary { display: flex; align-items: center; gap: .4rem; cursor: pointer; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+
+#layers summary::before,
+aside > details > summary::after {
+  content: '';
+  flex: none;
+  width: .45rem;
+  height: .45rem;
+  border-right: 1.5px solid #9a9a9a;
+  border-bottom: 1.5px solid #9a9a9a;
+  transform: rotate(-45deg);
+  transition: transform .12s ease;
+}
+/* A section heading keeps its text on the panel's left edge, with the whole row as the target and
+   the chevron out at the far side. Inside the tree the chevron leads instead, because there it
+   marks depth: it is a fixed .9rem of gutter, exactly what a row without one pads itself by, so
+   every control shares one left edge whatever its depth. */
+aside > details > summary::after { margin-left: auto; }
+#layers details[open] > summary::before,
+aside > details[open] > summary::after { transform: rotate(45deg); }
+
+#layers ul { list-style: none; margin: 0; padding-left: .9rem; }
 #layers > ul { padding-left: 0; }
-#layers li { margin: .15rem 0; }
-#layers label { display: inline-flex; align-items: center; gap: .35rem; cursor: pointer; }
-#layers summary { cursor: pointer; list-style-position: outside; }
-#layers summary::marker { color: #999; }
+#layers li { margin: .2rem 0; }
+#layers label { display: flex; align-items: center; gap: .4rem; cursor: pointer; }
+#layers input { flex: none; margin: 0; }
+/* a row with no chevron pays the gutter itself, so its box lines up with one that has */
+#layers li > label { padding-left: .9rem; }
 
 #legend ul { list-style: none; margin: 0; padding: 0; }
-#legend li { display: flex; align-items: center; gap: .5rem; margin: .35rem 0; }
-#legend img { width: 28px; height: 28px; flex: none; }
+#legend li { display: flex; align-items: center; gap: .5rem; margin: .3rem 0; }
+/* the lightest class in a sequential ramp is nearly the panel's own colour, so give every swatch
+   an edge rather than let that one disappear */
+#legend img { width: 28px; height: 28px; flex: none; border: 1px solid #e0e0e0; }
+
+#places { list-style: none; margin: 0; padding: 0; }
+#places li { margin: .2rem 0; }
 
 .identify h3 { font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; color: #666; margin: .8rem 0 .3rem; }
 .identify h3:first-child { margin-top: 0; }

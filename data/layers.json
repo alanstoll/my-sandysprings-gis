@@ -31,7 +31,25 @@
     "source": "layers/acs-bg.csv",
     "table": "acs_bg_data_raw",
     "options": [],
-    "attribution": "U.S. Census Bureau, American Community Survey 2020-2024 5-Year Estimates, table B03002",
+    "attribution": "U.S. Census Bureau, American Community Survey 2020-2024 5-Year Estimates, tables B03002, B01001, B25044",
+    "license": "Public domain",
+    "url": "https://api.census.gov/data/2024/acs/acs5"
+  },
+  {
+    "layer": "acs_tract_geom",
+    "source": "layers/acs-tract.geojson",
+    "table": "acs_tract_geom_raw",
+    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "attribution": "U.S. Census Bureau, TIGER/Line 2024 census tracts",
+    "license": "Public domain",
+    "url": "https://www2.census.gov/geo/tiger/TIGER2024/TRACT/"
+  },
+  {
+    "layer": "acs_tract_data",
+    "source": "layers/acs-tract.csv",
+    "table": "acs_tract_data_raw",
+    "options": [],
+    "attribution": "U.S. Census Bureau, American Community Survey 2020-2024 5-Year Estimates, tables B19013, B25077, B25064, B25003, B08301",
     "license": "Public domain",
     "url": "https://api.census.gov/data/2024/acs/acs5"
   }
