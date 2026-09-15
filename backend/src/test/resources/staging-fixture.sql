@@ -138,12 +138,18 @@ create table staging.tax_parcel_raw (
     geom      geometry(MultiPolygon, 4326)
 );
 
--- a house, a condo block, and the unaddressed vacant lot the county writes as "0 <street>" with
--- neither an acreage nor a unit count
+-- one row per category the style draws, plus the unaddressed vacant lot the county writes as
+-- "0 <street>" with neither an acreage nor a unit count
 insert into staging.tax_parcel_raw
 values (1, '17 011900050296', '44 BARBARA LN NW', '101', 'R3', 0.4687, 1, ST_Multi(ST_GeomFromText(
            'POLYGON((-84.40 33.92,-84.399 33.92,-84.399 33.921,-84.40 33.921,-84.40 33.92))', 4326))),
-       (2, '17 010000010001', '100 PERIMETER CENTER PL', '107', 'C4', 3.2, 242, ST_Multi(ST_GeomFromText(
+       (2, '17 010000010001', '100 PERIMETER CENTER PL', '107', 'R3', 0.05, 1, ST_Multi(ST_GeomFromText(
            'POLYGON((-84.35 33.93,-84.348 33.93,-84.348 33.932,-84.35 33.932,-84.35 33.93))', 4326))),
        (3, '17 010000010002', '0 GLENLAKE PKWY', '100', 'C3', null, null, ST_Multi(ST_GeomFromText(
-           'POLYGON((-84.36 33.935,-84.359 33.935,-84.359 33.936,-84.36 33.936,-84.36 33.935))', 4326)));
+           'POLYGON((-84.36 33.935,-84.359 33.935,-84.359 33.936,-84.36 33.936,-84.36 33.935))', 4326))),
+       (4, '17 010000010003', '20 PERIMETER PARK', '2A1', 'C5', 20.09, 250, ST_Multi(ST_GeomFromText(
+           'POLYGON((-84.34 33.94,-84.338 33.94,-84.338 33.942,-84.34 33.942,-84.34 33.94))', 4326))),
+       (5, '17 010000010004', '100 MOUNT VERNON HWY', '612', 'E1', 11.45, 0, ST_Multi(ST_GeomFromText(
+           'POLYGON((-84.37 33.92,-84.368 33.92,-84.368 33.922,-84.37 33.922,-84.37 33.92))', 4326))),
+       (6, '17 010000010005', '500 HAMMOND DR', '355', 'C3', 0.09, 0, ST_Multi(ST_GeomFromText(
+           'POLYGON((-84.36 33.93,-84.359 33.93,-84.359 33.931,-84.36 33.931,-84.36 33.93))', 4326)));

@@ -200,6 +200,10 @@ map.on('load', async () => {
     (await legendFor('sandysprings:acs_bg', 'acs_race')).map(({ name, label }) => [name, label]),
   )
 
+  // Same trick for parcels: the land use classes are written down once, in the SLD, and the
+  // popup reads them back off the legend rather than keeping its own copy of the labels.
+  const parcelClasses = Object.fromEntries(taxParcel.map(({ name, label }) => [name, label]))
+
   const censusNode: LayerNode = {
     id: 'census',
     label: 'Census (ACS 2020-2024)',
@@ -296,7 +300,7 @@ map.on('load', async () => {
       identify: [{
         layer: 'tax_parcel',
         source: 'sandysprings:tax_parcel',
-        properties: ['parcel_id', 'address', 'land_use_code', 'class_code', 'acres', 'living_units'],
+        properties: ['parcel_id', 'address', 'category', 'land_use_code', 'class_code', 'acres', 'living_units'],
         section: (p) => {
           // 932 parcels have no street number, and the county writes those as "0 <street>"
           const address = String(p.address ?? '')
@@ -308,8 +312,9 @@ map.on('load', async () => {
               rows: [
                 ...(unaddressed ? [{ label: 'On', value: address.slice(2) }] : []),
                 { label: 'Parcel', value: String(p.parcel_id) },
-                // raw county codes: the download ships no description table for either, so
-                // spelling them out would mean inventing labels the source does not give
+                { label: 'Use', value: parcelClasses[String(p.category)] ?? String(p.category) },
+                // the county's own codes as well as the class they were grouped into, so a parcel
+                // that looks miscoloured can be traced back to what the digest actually said
                 { label: 'Land use code', value: String(p.land_use_code) },
                 { label: 'Class code', value: String(p.class_code) },
                 { label: 'Area', value: p.acres == null ? 'Not assessed' : `${Number(p.acres).toFixed(2)} acres` },

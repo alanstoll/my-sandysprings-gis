@@ -90,12 +90,28 @@ class BackendApplicationTests {
 
 	@Test
 	void keepsParcelsWithoutAnAcreageOrAUnitCount() {
-		assertThat(jdbc.sql("select count(*) from gis.tax_parcel").query(Long.class).single()).isEqualTo(3);
+		assertThat(jdbc.sql("select count(*) from gis.tax_parcel").query(Long.class).single()).isEqualTo(6);
 		// the assessor leaves both blank on an unbuilt lot, which must not become a zero on the map
 		assertThat(jdbc.sql("select count(*) from gis.tax_parcel where acres is null and living_units is null")
 			.query(Long.class).single()).isEqualTo(1);
-		assertThat(jdbc.sql("select living_units from gis.tax_parcel where parcel_id = '17 010000010001'")
-			.query(Integer.class).single()).isEqualTo(242);
+		// an apartment complex carries hundreds of dwellings on one parcel, which is the whole reason
+		// multifamily is worth separating: 0.5% of the city's parcels hold about half its housing
+		assertThat(jdbc.sql("select living_units from gis.tax_parcel where parcel_id = '17 010000010003'")
+			.query(Integer.class).single()).isEqualTo(250);
+	}
+
+	@Test
+	void groupsLandUseCodesIntoCategoriesTheStyleCanColour() {
+		assertThat(jdbc.sql("select parcel_id, category from gis.tax_parcel order by parcel_id")
+			.query((row, n) -> row.getString("category")).list())
+			.containsExactly("condo_townhouse", "residential_other", "multifamily", "institutional",
+					"commercial", "single_family");
+		// 355 and the vacant lot are both class C3, and land in different categories: the grouping
+		// follows the land use code, which the class code is too coarse to stand in for
+		assertThat(jdbc.sql("select count(*) from gis.tax_parcel where category = 'commercial'"
+				+ " and class_code like 'C%'").query(Long.class).single()).isEqualTo(1);
+		assertThat(jdbc.sql("select count(*) from gis.tax_parcel where category is null")
+			.query(Long.class).single()).isZero();
 	}
 
 }
