@@ -352,6 +352,155 @@ tasks.register('resetSchema') {
 	}
 }
 
+// The Vite dev server. It gets start/stop/status tasks rather than being left to `npm run dev`
+// because stopping that by hand does not work: npm spawns a shell, which spawns npm-cli, which
+// spawns node running vite, and only the leaf holds the port. Killing whatever listens on 5173
+// orphans the wrappers above it, and the dying leaf keeps rolldown's native binding open long
+// enough to make the next `npm ci` fail on a locked file.
+//
+// So start vite directly, skipping npm's wrappers, and stop it through ProcessHandle, which walks
+// the descendants without a taskkill or a pkill.
+def frontendDir = file('../frontend')
+def frontendPort = 5173
+def devServerDir = new File(frontendDir, '.dev-server')
+def vitePidFile = new File(devServerDir, 'vite.pid')
+def viteLogFile = new File(devServerDir, 'vite.log')
+
+// Vite binds the name localhost, which on Windows resolves to ::1 alone, so probing 127.0.0.1
+// reports a free port while the server is up. Ask every address the name resolves to.
+def portListening = { int port ->
+	InetAddress.getAllByName('localhost').any { address ->
+		def socket = new Socket()
+		try {
+			socket.connect(new InetSocketAddress(address, port), 250)
+			return true
+		}
+		catch (IOException ignored) {
+			return false
+		}
+		finally {
+			socket.close()
+		}
+	}
+}
+
+// Whoever holds the port. ProcessHandle cannot answer this: info().commandLine() is empty on
+// Windows for any process the JVM did not start, so a vite process is not recognisable by its
+// arguments, only by the port it answers on. That is what lets these tasks stop a server someone
+// started by hand, not just the one frontendStart launched.
+def portOwners = { int port ->
+	def windows = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('win')
+	// netstat without -p, because -p tcp lists IPv4 alone and vite's listener is on ::1
+	def command = windows
+			? ['cmd', '/c', 'netstat -ano']
+			: ['sh', '-c', "lsof -ti tcp:${port} -sTCP:LISTEN".toString()]
+	def process = new ProcessBuilder(command as String[]).redirectErrorStream(true).start()
+	def output = process.inputStream.getText('UTF-8')
+	process.waitFor()
+	if (!windows) {
+		return output.readLines().findAll { it.trim() ==~ /\d+/ }.collect { it.trim() as long }.unique()
+	}
+	// TCP    [::1]:5173    [::]:0    LISTENING    47820
+	output.readLines()
+			.collect { it.trim().split(/\s+/) }
+			.findAll { it.length >= 5 && it[0] == 'TCP' && it[1].endsWith(":${port}") && it[3] == 'LISTENING' }
+			.collect { it[4] as long }
+			.findAll { it > 0 }
+			.unique()
+}
+
+def viteHandles = { int port ->
+	def found = []
+	def recorded = vitePidFile.isFile() ? vitePidFile.text.trim() : ''
+	if (recorded ==~ /\d+/) {
+		ProcessHandle.of(recorded as long).ifPresent { found << it }
+	}
+	portOwners(port).each { pid ->
+		if (found.every { it.pid() != pid }) {
+			ProcessHandle.of(pid).ifPresent { found << it }
+		}
+	}
+	found.findAll { it.isAlive() }
+}
+
+def terminate = { ProcessHandle handle ->
+	def tree = [handle] + handle.descendants().toList()
+	tree.reverseEach { it.destroy() }
+	tree.each { member ->
+		try {
+			member.onExit().get(10, java.util.concurrent.TimeUnit.SECONDS)
+		}
+		catch (Exception ignored) {
+			member.destroyForcibly()
+		}
+	}
+}
+
+tasks.register('frontendStop') {
+	group = 'frontend'
+	description = 'Stops the Vite dev server, including one started outside these tasks'
+	doLast {
+		def handles = viteHandles(frontendPort)
+		vitePidFile.delete()
+		if (!handles) {
+			logger.lifecycle('frontendStop: nothing running')
+			return
+		}
+		handles.each { handle ->
+			terminate(handle)
+			logger.lifecycle("frontendStop: stopped pid ${handle.pid()}")
+		}
+		// the port outlives the process by a moment, and a start that races it binds nothing
+		for (int i = 0; i < 40 && portListening(frontendPort); i++) {
+			Thread.sleep(250)
+		}
+		if (portListening(frontendPort)) {
+			throw new GradleException("port ${frontendPort} is still held after stopping every vite process")
+		}
+	}
+}
+
+tasks.register('frontendStart') {
+	group = 'frontend'
+	description = "Starts the Vite dev server on port ${frontendPort} in the background"
+	doLast {
+		if (portListening(frontendPort)) {
+			logger.lifecycle("frontendStart: already serving http://localhost:${frontendPort}/")
+			return
+		}
+		def vite = new File(frontendDir, 'node_modules/vite/bin/vite.js')
+		if (!vite.isFile()) {
+			throw new GradleException("no vite in ${frontendDir}/node_modules; run `npm ci` there first")
+		}
+		devServerDir.mkdirs()
+		viteLogFile.delete()
+		// node directly rather than `npm run dev`, so the process we record is the one that serves
+		// the port and there is no wrapper tree to lose track of
+		def process = new ProcessBuilder(['node', vite.absolutePath, '--port', frontendPort as String] as String[])
+				.directory(frontendDir).redirectErrorStream(true).redirectOutput(viteLogFile).start()
+		vitePidFile.text = process.pid() as String
+		for (int i = 0; i < 120 && process.isAlive() && !portListening(frontendPort); i++) {
+			Thread.sleep(250)
+		}
+		if (!process.isAlive() || !portListening(frontendPort)) {
+			throw new GradleException("vite did not come up on ${frontendPort}:\n${viteLogFile.text}")
+		}
+		logger.lifecycle("frontendStart: pid ${process.pid()} serving http://localhost:${frontendPort}/ (log: ${viteLogFile})")
+	}
+}
+
+tasks.register('frontendStatus') {
+	group = 'frontend'
+	description = 'Reports whether the Vite dev server is running'
+	doLast {
+		def handles = viteHandles(frontendPort)
+		def port = portListening(frontendPort) ? 'listening' : 'free'
+		logger.lifecycle(handles
+				? "frontendStatus: running, pid ${handles*.pid().join(', ')}, port ${frontendPort} ${port}"
+				: "frontendStatus: not running, port ${frontendPort} ${port}")
+	}
+}
+
 tasks.named('bootRun') {
 	dependsOn 'ingestData'
 }
