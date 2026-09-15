@@ -409,9 +409,13 @@ def portOwners = { int port ->
 			.unique()
 }
 
-def viteHandles = { int port ->
+// Whatever is serving a port: the pid we recorded if we started it, plus whoever holds the port if
+// we did not. bootRun has the same problem as the dev server -- a backend left over from an
+// earlier session takes 8080 and the next one dies on startup -- so this is shared rather than
+// written twice.
+def serverHandles = { int port, File pidFile ->
 	def found = []
-	def recorded = vitePidFile.isFile() ? vitePidFile.text.trim() : ''
+	def recorded = pidFile?.isFile() ? pidFile.text.trim() : ''
 	if (recorded ==~ /\d+/) {
 		ProcessHandle.of(recorded as long).ifPresent { found << it }
 	}
@@ -436,27 +440,31 @@ def terminate = { ProcessHandle handle ->
 	}
 }
 
+def stopServer = { String label, int port, File pidFile, Closure log ->
+	def handles = serverHandles(port, pidFile)
+	pidFile?.delete()
+	if (!handles) {
+		log("${label}: nothing running")
+		return
+	}
+	handles.each { handle ->
+		terminate(handle)
+		log("${label}: stopped pid ${handle.pid()}")
+	}
+	// the port outlives the process by a moment, and a start that races it binds nothing
+	for (int i = 0; i < 40 && portListening(port); i++) {
+		Thread.sleep(250)
+	}
+	if (portListening(port)) {
+		throw new GradleException("port ${port} is still held after stopping every process on it")
+	}
+}
+
 tasks.register('frontendStop') {
 	group = 'frontend'
 	description = 'Stops the Vite dev server, including one started outside these tasks'
 	doLast {
-		def handles = viteHandles(frontendPort)
-		vitePidFile.delete()
-		if (!handles) {
-			logger.lifecycle('frontendStop: nothing running')
-			return
-		}
-		handles.each { handle ->
-			terminate(handle)
-			logger.lifecycle("frontendStop: stopped pid ${handle.pid()}")
-		}
-		// the port outlives the process by a moment, and a start that races it binds nothing
-		for (int i = 0; i < 40 && portListening(frontendPort); i++) {
-			Thread.sleep(250)
-		}
-		if (portListening(frontendPort)) {
-			throw new GradleException("port ${frontendPort} is still held after stopping every vite process")
-		}
+		stopServer('frontendStop', frontendPort, vitePidFile) { logger.lifecycle(it) }
 	}
 }
 
@@ -493,7 +501,7 @@ tasks.register('frontendStatus') {
 	group = 'frontend'
 	description = 'Reports whether the Vite dev server is running'
 	doLast {
-		def handles = viteHandles(frontendPort)
+		def handles = serverHandles(frontendPort, vitePidFile)
 		def port = portListening(frontendPort) ? 'listening' : 'free'
 		logger.lifecycle(handles
 				? "frontendStatus: running, pid ${handles*.pid().join(', ')}, port ${frontendPort} ${port}"
@@ -501,6 +509,26 @@ tasks.register('frontendStatus') {
 	}
 }
 
+def backendPort = 8080
+
+tasks.register('backendStop') {
+	group = 'application'
+	description = "Stops whatever is serving port ${backendPort}, so the next bootRun can bind it"
+	doLast {
+		stopServer('backendStop', backendPort, null) { logger.lifecycle(it) }
+	}
+}
+
+tasks.register('backendStatus') {
+	group = 'application'
+	description = 'Reports whether a backend is serving port 8080'
+	doLast {
+		def handles = serverHandles(backendPort, null)
+		logger.lifecycle(handles
+				? "backendStatus: running, pid ${handles*.pid().join(', ')}, port ${backendPort} listening"
+				: "backendStatus: not running, port ${backendPort} ${portListening(backendPort) ? 'held by something else' : 'free'}")
+	}
+}
 tasks.named('bootRun') {
 	dependsOn 'ingestData'
 }
