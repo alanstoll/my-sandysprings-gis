@@ -35,12 +35,14 @@ class StagingTransformer implements ApplicationRunner {
 		transform("acs_bg", "transform/acs-bg.sql");
 		transform("acs_tract", "transform/acs-tract.sql");
 		transform("tax_parcel", "transform/tax-parcel.sql");
+		// built from gis.city_limit above rather than from staging, so it goes last
+		transform("city_limit_inhouse", "transform/city-limit-inhouse.sql");
 	}
 
 	private void transform(String table, String script) throws IOException {
 		// One statement so the truncate and the insert share a transaction
 		jdbc.execute(new ClassPathResource(script).getContentAsString(StandardCharsets.UTF_8));
-		log.info("gis.{} rebuilt from staging, {} rows", table,
+		log.info("gis.{} rebuilt, {} rows", table,
 				jdbc.queryForObject("select count(*) from gis." + table, Long.class));
 	}
 

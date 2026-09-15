@@ -107,18 +107,23 @@ const THEMES: Theme[] = [
 type View = { id: string; label: string; available?: string[]; on: string[]; theme: string | null }
 
 const VIEWS: View[] = [
-  { id: 'all', label: 'All layers', on: ['city_limit', 'basemap'], theme: null },
-  { id: 'city', label: 'City map', available: ['aerial', 'city_limit', 'basemap'],
-    on: ['city_limit', 'basemap'], theme: null },
-  { id: 'race', label: 'Race & ethnicity', available: ['census', 'city_limit', 'basemap'],
-    on: ['city_limit', 'basemap'], theme: 'acs_race' },
+  { id: 'all', label: 'All layers', on: ['city_limit_inhouse', 'basemap'], theme: null },
+  { id: 'city', label: 'City map', available: ['aerial', 'city_limit_inhouse', 'city_limit', 'basemap'],
+    on: ['city_limit_inhouse', 'basemap'], theme: null },
+  // the published outline against ours, over the parcels that are the reason for the difference
+  { id: 'limits', label: 'City limits compared',
+    available: ['aerial', 'tax_parcel', 'city_limit_inhouse', 'city_limit', 'basemap'],
+    on: ['city_limit_inhouse', 'city_limit', 'tax_parcel', 'basemap'], theme: null },
+  { id: 'race', label: 'Race & ethnicity', available: ['census', 'city_limit_inhouse', 'city_limit', 'basemap'],
+    on: ['city_limit_inhouse', 'basemap'], theme: 'acs_race' },
   // flood zones earn their place here and nowhere else so far: what a home is worth and what it
   // costs to insure are the same conversation
   { id: 'home_value', label: 'Median home value',
-    available: ['census', 'flood_zone', 'city_limit', 'basemap'],
-    on: ['city_limit', 'flood_zone', 'basemap'], theme: 'acs_home_value' },
-  { id: 'income', label: 'Median household income', available: ['census', 'city_limit', 'basemap'],
-    on: ['city_limit', 'basemap'], theme: 'acs_income' },
+    available: ['census', 'flood_zone', 'city_limit_inhouse', 'city_limit', 'basemap'],
+    on: ['city_limit_inhouse', 'flood_zone', 'basemap'], theme: 'acs_home_value' },
+  { id: 'income', label: 'Median household income',
+    available: ['census', 'city_limit_inhouse', 'city_limit', 'basemap'],
+    on: ['city_limit_inhouse', 'basemap'], theme: 'acs_income' },
 ]
 
 // Filled in before the map is: the sidebar has no reason to wait on tiles to show its own controls.
@@ -178,18 +183,29 @@ map.on('load', async () => {
   })
   map.addLayer({ id: 'tax_parcel', type: 'raster', source: 'tax_parcel', layout: { visibility: 'none' } }, roadsUp)
 
-  // city limits stay on GeoServer: MapLibre consumes the WMS as a raster source
+  // Two versions of the same boundary, the published one under ours so ours is what you read the
+  // map against where they coincide. The place labels ride with ours for the same reason: switching
+  // the published outline off is the normal case and must not take the labels with it.
   map.addSource('city_limit', {
     type: 'raster',
-    tiles: [wms('sandysprings:city_limit,sandysprings:place')],
+    tiles: [wms('sandysprings:city_limit')],
     tileSize: 512,
-    attribution: 'City limits \u00a9 City of Sandy Springs GIS Department (CC BY 4.0)',
+    attribution: 'City limits as published © City of Sandy Springs GIS Department (CC BY 4.0)',
+  })
+  map.addLayer({ id: 'city_limit', type: 'raster', source: 'city_limit', layout: { visibility: 'none' } })
+
+  map.addSource('city_limit_inhouse', {
+    type: 'raster',
+    tiles: [wms('sandysprings:city_limit_inhouse,sandysprings:place')],
+    tileSize: 512,
+    attribution: 'City limits © City of Sandy Springs GIS Department (CC BY 4.0), moved onto the 2026 parcel fabric',
   })
   // the boundary stays on top of everything; it is a reference line, not thematic data
-  map.addLayer({ id: 'city_limit', type: 'raster', source: 'city_limit' })
+  map.addLayer({ id: 'city_limit_inhouse', type: 'raster', source: 'city_limit_inhouse' })
 
-  const [cityLimit, floodZone, taxParcel] = await Promise.all([
+  const [cityLimit, cityLimitInhouse, floodZone, taxParcel] = await Promise.all([
     legendFor('sandysprings:city_limit'),
+    legendFor('sandysprings:city_limit_inhouse'),
     legendFor('sandysprings:flood_zone'),
     legendFor('sandysprings:tax_parcel'),
   ])
@@ -269,7 +285,8 @@ map.on('load', async () => {
     { id: 'aerial', label: 'Aerial imagery (NAIP)', layers: ['aerial'] },
     // no identify: the city limit is a reference boundary, and as a polygon it would answer every
     // click inside the city with the same row
-    { id: 'city_limit', label: 'City limits', layers: ['city_limit'], legend: cityLimit },
+    { id: 'city_limit_inhouse', label: 'City limits', layers: ['city_limit_inhouse'], legend: cityLimitInhouse },
+    { id: 'city_limit', label: 'City limits (as published)', layers: ['city_limit'], legend: cityLimit },
     {
       id: 'flood_zone',
       label: 'Flood zones',

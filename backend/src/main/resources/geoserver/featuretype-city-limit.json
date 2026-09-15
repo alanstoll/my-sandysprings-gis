@@ -1,1 +1,1 @@
-{"featureType": {"name": "city_limit", "nativeName": "city_limit", "title": "City Limits", "srs": "EPSG:4326"}}
+{"featureType": {"name": "city_limit", "nativeName": "city_limit", "title": "City Limits (as published)", "srs": "EPSG:4326"}}

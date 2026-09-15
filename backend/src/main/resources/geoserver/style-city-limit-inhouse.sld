@@ -5,20 +5,20 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.opengis.net/sld http://schemas.opengis.net/sld/1.0.0/StyledLayerDescriptor.xsd">
   <NamedLayer>
-    <Name>city_limit</Name>
+    <Name>city_limit_inhouse</Name>
     <UserStyle>
-      <Name>city_limit</Name>
+      <Name>city_limit_inhouse</Name>
       <Title>City Limits</Title>
       <FeatureTypeStyle>
         <Rule>
-          <Name>city_limit</Name>
-          <Title>City limit as published</Title>
-          <!-- outline only: a fill washes out the basemap underneath. Same weight and dash as
-               city_limit_inhouse, which is what makes the two comparable; the colour says which
-               is which, and black is the in-house one because that is the line to read -->
+          <Name>city_limit_inhouse</Name>
+          <Title>City limit</Title>
+          <!-- outline only: a fill washes out the basemap underneath. Black, where the published
+               boundary is violet: this is the one to read the map against, and the two carry the
+               same weight and dash so the difference between them is position and nothing else -->
           <PolygonSymbolizer>
             <Stroke>
-              <CssParameter name="stroke">#7B1FA2</CssParameter>
+              <CssParameter name="stroke">#000000</CssParameter>
               <CssParameter name="stroke-width">3</CssParameter>
               <CssParameter name="stroke-dasharray">12 7</CssParameter>
             </Stroke>

@@ -57,11 +57,13 @@ class GeoServerPublisher implements ApplicationRunner {
 		ensure("/workspaces/sandysprings/datastores", "postgis", "geoserver/datastore.json");
 		ensureFeatureType("place", "geoserver/featuretype-place.json");
 		ensureFeatureType("city_limit", "geoserver/featuretype-city-limit.json");
+		ensureFeatureType("city_limit_inhouse", "geoserver/featuretype-city-limit-inhouse.json");
 		ensureFeatureType("flood_zone", "geoserver/featuretype-flood-zone.json");
 		ensureFeatureType("acs_bg", "geoserver/featuretype-acs-bg.json");
 		ensureFeatureType("acs_tract", "geoserver/featuretype-acs-tract.json");
 		ensureFeatureType("tax_parcel", "geoserver/featuretype-tax-parcel.json");
 		ensureStyle("city_limit", "geoserver/style-city-limit.sld");
+		ensureStyle("city_limit_inhouse", "geoserver/style-city-limit-inhouse.sld");
 		ensureStyle("flood_zone", "geoserver/style-flood-zone.sld");
 		ensureStyle("tax_parcel", "geoserver/style-tax-parcel.sld");
 		// One style per theme across the two acs layers; the client picks with the WMS styles
@@ -69,6 +71,7 @@ class GeoServerPublisher implements ApplicationRunner {
 		// here they are just styles that happen to match one schema or the other.
 		ACS_THEMES.forEach(theme -> ensureStyle(theme, "geoserver/style-" + theme.replace('_', '-') + ".sld"));
 		update("/layers/sandysprings:city_limit", "geoserver/layer-city-limit.json");
+		update("/layers/sandysprings:city_limit_inhouse", "geoserver/layer-city-limit-inhouse.json");
 		update("/layers/sandysprings:flood_zone", "geoserver/layer-flood-zone.json");
 		update("/layers/sandysprings:acs_bg", "geoserver/layer-acs-bg.json");
 		update("/layers/sandysprings:acs_tract", "geoserver/layer-acs-tract.json");

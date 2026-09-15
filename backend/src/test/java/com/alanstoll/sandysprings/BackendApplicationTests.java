@@ -32,6 +32,23 @@ class BackendApplicationTests {
 	}
 
 	@Test
+	void movesTheCityLimitOntoTheParcelFabric() {
+		assertThat(jdbc.sql("select name from gis.city_limit_inhouse").query(String.class).single())
+			.isEqualTo("Sandy Springs");
+		// EPSG:2240's unit is the foot, so the correction lands exactly, and the round trip back
+		// through 4326 has to preserve it
+		assertThat(jdbc
+			.sql("select round((st_x(st_centroid(st_transform(i.geom, 2240)))"
+					+ " - st_x(st_centroid(st_transform(c.geom, 2240))))::numeric, 2) || ',' ||"
+					+ " round((st_y(st_centroid(st_transform(i.geom, 2240)))"
+					+ " - st_y(st_centroid(st_transform(c.geom, 2240))))::numeric, 2)"
+					+ " from gis.city_limit_inhouse i, gis.city_limit c")
+			.query(String.class).single()).isEqualTo("253.46,41.01");
+		assertThat(jdbc.sql("select dx_ft || ',' || dy_ft from gis.city_limit_inhouse")
+			.query(String.class).single()).isEqualTo("253.46,41.01");
+	}
+
+	@Test
 	void transformsFloodZones() {
 		assertThat(jdbc.sql("select zone from gis.flood_zone where sfha").query(String.class).list())
 			.containsExactlyInAnyOrder("AE", "AE", "A");
