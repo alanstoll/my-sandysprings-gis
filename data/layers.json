@@ -52,5 +52,15 @@
     "attribution": "U.S. Census Bureau, American Community Survey 2020-2024 5-Year Estimates, tables B19013, B25077, B25064, B25003, B08301",
     "license": "Public domain",
     "url": "https://api.census.gov/data/2024/acs/acs5"
+  },
+  {
+    "layer": "tax_parcel",
+    "source": "layers/tax-parcel.geojson",
+    "table": "tax_parcel_raw",
+    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "attribution": "Fulton County Board of Assessors, 2026 tax digest",
+    "license": "Public record",
+    "url": "https://gisdata.fultoncountyga.gov/datasets/tax-parcels"
   }
 ]
+

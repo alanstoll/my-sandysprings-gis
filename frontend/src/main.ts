@@ -167,6 +167,17 @@ map.on('load', async () => {
   })
   map.addLayer({ id: 'flood_zone', type: 'raster', source: 'flood_zone' }, roadsUp)
 
+  // Above the flood zones and above whichever choropleth is on, but still under the roads:
+  // parcel lines are the reference grid you read a thematic layer against, so they have to stay
+  // legible over it. Off until asked for; 30,000 outlines are a lot to put on an opening map.
+  map.addSource('tax_parcel', {
+    type: 'raster',
+    tiles: [wms('sandysprings:tax_parcel')],
+    tileSize: 512,
+    attribution: 'Tax parcels: Fulton County Board of Assessors, 2026 tax digest (public record)',
+  })
+  map.addLayer({ id: 'tax_parcel', type: 'raster', source: 'tax_parcel', layout: { visibility: 'none' } }, roadsUp)
+
   // city limits stay on GeoServer: MapLibre consumes the WMS as a raster source
   map.addSource('city_limit', {
     type: 'raster',
@@ -177,9 +188,10 @@ map.on('load', async () => {
   // the boundary stays on top of everything; it is a reference line, not thematic data
   map.addLayer({ id: 'city_limit', type: 'raster', source: 'city_limit' })
 
-  const [cityLimit, floodZone] = await Promise.all([
+  const [cityLimit, floodZone, taxParcel] = await Promise.all([
     legendFor('sandysprings:city_limit'),
     legendFor('sandysprings:flood_zone'),
+    legendFor('sandysprings:tax_parcel'),
   ])
 
   // The race style already names every category; reuse its labels rather than spelling them out
@@ -274,6 +286,38 @@ map.on('load', async () => {
             ],
           },
         }),
+      }],
+    },
+    {
+      id: 'tax_parcel',
+      label: 'Tax parcels',
+      layers: ['tax_parcel'],
+      legend: taxParcel,
+      identify: [{
+        layer: 'tax_parcel',
+        source: 'sandysprings:tax_parcel',
+        properties: ['parcel_id', 'address', 'land_use_code', 'class_code', 'acres', 'living_units'],
+        section: (p) => {
+          // 932 parcels have no street number, and the county writes those as "0 <street>"
+          const address = String(p.address ?? '')
+          const unaddressed = address.startsWith('0 ')
+          return {
+            title: unaddressed ? 'Unaddressed parcel' : address,
+            body: {
+              kind: 'table',
+              rows: [
+                ...(unaddressed ? [{ label: 'On', value: address.slice(2) }] : []),
+                { label: 'Parcel', value: String(p.parcel_id) },
+                // raw county codes: the download ships no description table for either, so
+                // spelling them out would mean inventing labels the source does not give
+                { label: 'Land use code', value: String(p.land_use_code) },
+                { label: 'Class code', value: String(p.class_code) },
+                { label: 'Area', value: p.acres == null ? 'Not assessed' : `${Number(p.acres).toFixed(2)} acres` },
+                { label: 'Living units', value: p.living_units == null ? 'Not assessed' : String(p.living_units) },
+              ],
+            },
+          }
+        },
       }],
     },
     censusNode,

@@ -126,3 +126,24 @@ insert into staging.acs_tract_data_raw
 values
        (1, '13089000001', '120000', '9000', '550000', '30000', '1800', '150', '800', '25', '200', '20', '1000', '15', '600', '15', '100', '15', '50', '15', '10', '15', '10', '15', '20', '15', '60', '15', '50', '15', '100', '15'),
        (2, '13089000002', '-666666666', '9000', '-666666666', '30000', '-666666666', '150', '400', '25', '300', '20', '500', '15', '250', '15', '50', '15', '25', '15', '5', '15', '5', '15', '10', '15', '30', '15', '25', '15', '100', '15');
+
+create table staging.tax_parcel_raw (
+    id        integer primary key,
+    parcelid  varchar,
+    address   varchar,
+    lucode    varchar,
+    classcode varchar,
+    landacres double precision,
+    livunits  integer,
+    geom      geometry(MultiPolygon, 4326)
+);
+
+-- a house, a condo block, and the unaddressed vacant lot the county writes as "0 <street>" with
+-- neither an acreage nor a unit count
+insert into staging.tax_parcel_raw
+values (1, '17 011900050296', '44 BARBARA LN NW', '101', 'R3', 0.4687, 1, ST_Multi(ST_GeomFromText(
+           'POLYGON((-84.40 33.92,-84.399 33.92,-84.399 33.921,-84.40 33.921,-84.40 33.92))', 4326))),
+       (2, '17 010000010001', '100 PERIMETER CENTER PL', '107', 'C4', 3.2, 242, ST_Multi(ST_GeomFromText(
+           'POLYGON((-84.35 33.93,-84.348 33.93,-84.348 33.932,-84.35 33.932,-84.35 33.93))', 4326))),
+       (3, '17 010000010002', '0 GLENLAKE PKWY', '100', 'C3', null, null, ST_Multi(ST_GeomFromText(
+           'POLYGON((-84.36 33.935,-84.359 33.935,-84.359 33.936,-84.36 33.936,-84.36 33.935))', 4326)));

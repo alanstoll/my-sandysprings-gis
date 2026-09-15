@@ -88,4 +88,14 @@ class BackendApplicationTests {
 			.query(Long.class).single()).isZero();
 	}
 
+	@Test
+	void keepsParcelsWithoutAnAcreageOrAUnitCount() {
+		assertThat(jdbc.sql("select count(*) from gis.tax_parcel").query(Long.class).single()).isEqualTo(3);
+		// the assessor leaves both blank on an unbuilt lot, which must not become a zero on the map
+		assertThat(jdbc.sql("select count(*) from gis.tax_parcel where acres is null and living_units is null")
+			.query(Long.class).single()).isEqualTo(1);
+		assertThat(jdbc.sql("select living_units from gis.tax_parcel where parcel_id = '17 010000010001'")
+			.query(Integer.class).single()).isEqualTo(242);
+	}
+
 }

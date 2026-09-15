@@ -191,6 +191,47 @@ tasks.register('prepareFloodHazard') {
 	}
 }
 
+// Fulton County publishes the whole county roll: 373k parcels, 418 MB, far too large to commit and
+// 92% of it outside the city. This cuts it to a load-ready source, so data/layers/tax-parcel.geojson
+// is what a fresh clone ingests. Re-run it when Fulton reissues the roll. Not wired into bootRun for
+// the same reason as buildBasemap: its input is not there.
+//
+// Selection is by the assessor's own tax district rather than -clipsrc against city-limit.geojson.
+// Parcels are legal boundaries, so cutting one at a polygon edge produces a lie plus a sliver; that
+// clip also emitted a LineString and a GeometryCollection that would fail the MultiPolygon load. And
+// the polygon is a 2005 vintage that disagrees with the 2026 roll on some 400 parcels, swallowing
+// Atlanta's Chastain Park while dropping Sandy Springs ones. 59 is the city; 59B is the same city
+// with the Perimeter CID levy on top, so both belong.
+tasks.register('prepareTaxParcels') {
+	group = 'gis'
+	description = 'Selects the Sandy Springs tax districts from the Fulton County parcel roll in data/raw/taxparcels, writing data/layers/tax-parcel.geojson'
+	doLast {
+		def source = new File(dataDir, 'raw/taxparcels/Tax_Parcels.geojson')
+		if (!source.isFile()) {
+			throw new GradleException("no Fulton County parcel roll at ${source}")
+		}
+		def output = new File(dataDir, 'layers/tax-parcel.geojson')
+		output.delete()
+		runCommand(['docker', 'run', '--rm',
+				'-v', "${dataDir.absolutePath.replace(File.separatorChar, '/' as char)}:/data", gdalImage,
+				'ogr2ogr', '-f', 'GeoJSON', '/data/layers/tax-parcel.geojson',
+				'/data/raw/taxparcels/Tax_Parcels.geojson',
+				'-where', "TaxDist IN ('59', '59B')",
+				// Owner and OwnerAddr1/2 name a resident at two thirds of these addresses, and ExCode's
+				// senior suffixes would publish the owner's age bracket next to it. The rest is
+				// redundant: FeatureID repeats ParcelID, TaxYear is 2026 throughout, Shape__Area is
+				// LandAcres in square feet, the Addr* parts spell out Address, and TaxDist is constant
+				// once the -where has run.
+				'-select', 'ParcelID,Address,LUCode,ClassCode,LandAcres,LivUnits',
+				'-nlt', 'PROMOTE_TO_MULTI',
+				// 7 decimals, where every other layer takes 6: rounding to 6 collapses a spike on
+				// 17 0034  LL1698 into a two-point LineString, and ogr2ogr then emits the parcel as a
+				// GeometryCollection that no MultiPolygon column will take. Costs 0.3 MB
+				'-lco', 'RFC7946=YES', '-lco', 'COORDINATE_PRECISION=7'])
+		logger.lifecycle("prepareTaxParcels: wrote ${output.name} (${(output.length() / 1048576) as int} MB)")
+	}
+}
+
 // The American Community Survey is tabular, so an ACS layer takes two committed sources per
 // geography: polygons from TIGER/Line, and the estimates keyed to them by GEOID. Keeping them apart
 // is what makes adding a table later a column in the csv rather than a re-clip of the geometry.
