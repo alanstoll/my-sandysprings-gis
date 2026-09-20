@@ -153,3 +153,55 @@ values (1, '17 011900050296', '44 BARBARA LN NW', '101', 'R3', 0.4687, 1, ST_Mul
            'POLYGON((-84.37 33.92,-84.368 33.92,-84.368 33.922,-84.37 33.922,-84.37 33.92))', 4326))),
        (6, '17 010000010005', '500 HAMMOND DR', '355', 'C3', 0.09, 0, ST_Multi(ST_GeomFromText(
            'POLYGON((-84.36 33.93,-84.359 33.93,-84.359 33.931,-84.36 33.931,-84.36 33.93))', 4326)));
+
+-- A unit with rows in both description tables, and one the tables lack
+create table staging.geology_unit_raw (
+    id                  integer primary key,
+    map_unit            varchar,
+    identity_confidence varchar,
+    source_map          varchar,
+    source_unit         varchar,
+    geom                geometry(MultiPolygon, 4326)
+);
+
+insert into staging.geology_unit_raw
+values (1, 'PZpCm', 'certain', 'map52', '52|fg3', ST_Multi(ST_GeomFromText('POLYGON((-84.40 33.90,-84.38 33.90,-84.38 33.92,-84.40 33.92,-84.40 33.90))', 4326))),
+       (2, 'Qx', 'certain', 'map52', '52|zz', ST_Multi(ST_GeomFromText('POLYGON((-84.38 33.90,-84.36 33.90,-84.36 33.92,-84.38 33.92,-84.38 33.90))', 4326)));
+
+create table staging.geology_line_raw (
+    id        integer primary key,
+    type      varchar,
+    concealed varchar,
+    symbol    varchar,
+    geom      geometry(MultiLineString, 4326)
+);
+
+insert into staging.geology_line_raw
+values (1, 'fault', 'n', '02.01.01', ST_Multi(ST_GeomFromText('LINESTRING(-84.40 33.90,-84.38 33.92)', 4326))),
+       (2, 'contact', 'y', '01.01.01', ST_Multi(ST_GeomFromText('LINESTRING(-84.39 33.90,-84.39 33.92)', 4326)));
+
+-- ogr2ogr loads the csvs without types, so these are varchar like the real staging tables
+create table staging.geology_dmu_raw (
+    id          integer primary key,
+    map_unit    varchar,
+    name        varchar,
+    age         varchar,
+    description varchar,
+    geomaterial varchar,
+    hierarchy   varchar
+);
+
+insert into staging.geology_dmu_raw
+values (1, 'PZpCm', 'Metamorphic rocks', 'Paleozoic to Precambrian', 'Metamorphic rocks with poorly constrained ages.', 'Medium and high-grade regional metamorphic rock, of unspecified origin', '03-02');
+
+create table staging.geology_source_dmu_raw (
+    id          integer primary key,
+    source_unit varchar,
+    name        varchar,
+    age         varchar,
+    description varchar,
+    geomaterial varchar
+);
+
+insert into staging.geology_source_dmu_raw
+values (1, '52|fg3', 'Biotitic gneiss / Mica schist / Amphibolite', 'Precambrian and/or Paleozoic', '', 'Medium and high-grade regional metamorphic rock, of unspecified origin');

@@ -49,6 +49,18 @@ class BackendApplicationTests {
 	}
 
 	@Test
+	void joinsGeologyUnitsToTheirDescriptions() {
+		assertThat(jdbc.sql("select name || ' / ' || source_unit || ' / ' || source_name from gis.geology_unit"
+				+ " where map_unit = 'PZpCm'").query(String.class).single())
+			.isEqualTo("Metamorphic rocks / fg3 / Biotitic gneiss / Mica schist / Amphibolite");
+		// unnamed rather than dropped
+		assertThat(jdbc.sql("select count(*) from gis.geology_unit where name is null").query(Long.class).single())
+			.isEqualTo(1);
+		assertThat(jdbc.sql("select type from gis.geology_line where concealed").query(String.class).single())
+			.isEqualTo("contact");
+	}
+
+	@Test
 	void transformsFloodZones() {
 		assertThat(jdbc.sql("select zone from gis.flood_zone where sfha").query(String.class).list())
 			.containsExactlyInAnyOrder("AE", "AE", "A");

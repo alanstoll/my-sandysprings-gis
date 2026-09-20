@@ -1,0 +1,122 @@
+map_unit,name,age,description,geomaterial,hierarchy
+Qu,"Quaternary units, undifferentiated",Quaternary,A few areas of colluvium mapped locally.,Sedimentary material,"02"
+Tu,Tertiary rocks,Tertiary,Undifferentiated Tertiary rocks.,Sedimentary material,"04"
+PZu,Undifferentiated Paleozoic rocks,Paleozoic,Mostly metamorphic rocks with poorly constrained ages and/or protoliths.,Metamorphic rock,"08"
+pC,Undifferentiated Precambrian rocks,Precambrian,"Poorly dated metamorphic, igneous, and sedimentary rocks known or suspected to be Precambrian.",Metamorphic rock,"10"
+Qv,Volcanic rocks,Quaternary,"Mostly intermediate to mafic lava flows and lesser rhyolite, includes other extrusive materials and minor intrusive rocks.",Extrusive igneous material,"02-02"
+water,Water and ice,Modern,"Primarily water bodies, locally includes glacial ice.",Water or ice,"01-01"
+af,Artificial fill,Modern,"Modern, unconsolidated material known to have human-related origin.","""Made"" or human-engineered land","01-02"
+unmapped,Unmapped areas,Not applicable,Areas not covered by mapped geology in primary sources.,Unmapped area,"01-03"
+Ts,Sedimentary rocks,Tertiary,"Mostly sandstone and mudstone with minor carbonate, age constrained only to the Tertiary.",Sedimentary rock,"04-01"
+Tvi,Extrusive igneous rocks,Tertiary,"Extrusive igneous rocks whose age and nature are only described in a general way, or lumped regional map units that contain a wide variety of Tertiary igneous rocks.",Extrusive igneous material,"04-02"
+MZms,Sedimentary and metasedimentary rocks,Mesozoic,Mostly sandstone and mudstone.,Sandstone and mudstone,"06-01"
+MZim,Undifferentiated igneous and metamorphic rocks,Mesozoic,"Mostly coarse-grained felsic to intermediate intrusive rocks, numerous mafic dikes, and a variety of other compositions and textures.",Intrusive igneous rock,"06-04"
+Ks,Sedimentary rocks,Cretaceous,"Mostly sandstone and mudstone, minor carbonate rocks.",Sandstone and mudstone,"06-01-01"
+Js,Sedimentary rocks,Jurassic,"Mostly sandstone and mudstone, with minor carbonate rocks.",Sandstone and mudstone,"06-01-02"
+TRs,Sedimentary rocks,Triassic,Clastic sedimentary rocks and minor carbonate rocks.,Sedimentary rock,"06-01-03"
+PZpCu,Undifferentiated Paleozoic to Precambrian rocks,Paleozoic to Precambrian,Variably metamorphosed sedimentary rocks.,Metasedimentary rock,"09"
+TMZu,Undifferentiated Tertiary and Mesozoic rocks,Tertiary to Mesozoic,"Mix of units with poorly constrained ages that range from Tertiary to Mesozoic, mostly extrusive igneous rocks. Includes orthogneiss in Washington State.",Sedimentary rock,"05"
+TMZum,Ultramafic rocks,Tertiary to Mesozoic,"Primiarly ultramafic intrusive rocks; may locally include other rock types.",Ultramafic intrusive igneous rock,"05-01"
+ngTs,Sedimentary rocks,Neogene,Unconsolidated clastic sediment and sedimentary rock.,Sedimentary rock,"04-01-01"
+pgTs,Sedimentary rocks,Paleogene,"Mostly clastic sedimentary rocks, with minor carbonate.",Sedimentary rock,"04-01-02"
+PZms,Sedimentary and metasedimentary rocks,Paleozoic,Sedimentary and mostly low-grade metasedimentary rocks with poorly constrained ages or ages that span multiple periods within the Paleozoic.,Sedimentary rock,"08-01"
+PZi,Paleozoic igneous and metaigneous rocks,Paleozoic,"Mostly plutonic and metamorphosed plutonic rocks, lesser extrusive volcanic rocks.",Coarse-grained intrusive igneous rock,"08-02"
+MZPZu,Undifferentiated Mesozoic and Paleozoic rocks,Mesozoic to Paleozoic,"Sedimentary, igneous, and metamorphic rocks whose ages may span the Meosozoic to Paleozoic boundary (primarily units whose ages are constrained only to a broad range).",Sedimentary rock,"07"
+Ps,Sedimentary rocks,Permian,Clastic sedimentary and carbonate rocks.,Sedimentary rock,"08-01-01"
+PNs,Sedimentary rocks,Pennsylvanian,Mostly clastic sedimentary rocks with lesser carbonate and minor other lithologies.,Clastic sedimentary rock,"08-01-03"
+Ms,Sedimentary rocks,Mississippian,Clastic sedimentary and carbonate rocks.,Sedimentary rock,"08-01-04"
+Ds,Sedimentary rocks,Devonian,"Clastic sedimentary and carbonate rocks, minor chert.",Sedimentary rock,"08-01-06"
+Ss,Sedimentary rocks,Silurian,Carbonate and clastic sedimentary rocks.,Sedimentary rock,"08-01-07"
+Os,Sedimentary rocks,Ordovician,"Carbonate and clastic sedimentary rocks, includes some metasedimentary rocks.",Sedimentary rock,"08-01-08"
+PRu,Undifferentiated Proterozoic rocks,Proterozoic,"Undifferentiated Proterozoic metamorphic and igneous rocks; locally includes Proterozoic quartzites.",Metamorphic rock,10-01
+MZv,Volcanic rocks,Mesozoic,"Extrusive igneous rocks of all types, predominantly lava flows and variably reworked pyroclastic rocks.",Extrusive igneous material,"06-04-01"
+Ksl,Sedimentary rocks,Late Cretaceous,"Mostly sandstone and mudstone, with minor carbonate rocks.",Sandstone and mudstone,"06-01-01-01"
+Kse,Sedimentary rocks,Early Cretaceous,"Sandstone, mudstone, and limestone.",Sedimentary rock,"06-01-01-02"
+plTs,Sedimentary rocks,Pliocene,Unconsolidated clastic sediment and sedimentary rock.,Sedimentary rock,"04-01-01-01"
+mTs,Sedimentary rocks,Miocene,Mostly clastic sedimentary rocks.,Sedimentary rock,"04-01-01-02"
+oTs,Sedimentary rocks,Oligocene,"Mostly clastic sedimentary rocks, with minor carbonate.",Sedimentary rock,"04-01-02-01"
+eTs,Sedimentary rocks,Eocene,"Mostly sandstone and mudstone, with minor carbonate.",Sedimentary rock,"04-01-02-02"
+paTs,Sedimentary rocks,Paleocene,"Mostly sandstone and mudstone, minor carbonate.",Sedimentary rock,"04-01-02-03"
+Tvm,Mafic volcanic rocks,Tertiary,"Mostly mafic lava flows, minor mafic pyroclastic flows.",Mafic-composition lava flows,"04-02-04"
+Olms,Sedimentary rocks,Late and Middle Ordovician,"Mostly carbonate and some clastic sedimentary rocks, includes some metasedimentary rocks.",Sedimentary rock,"08-01-08-01"
+Oes,Sedimentary rocks,Early Ordovician,Carbonate rocks and lesser clastic sedimentary rocks.,Mostly carbonate rock,"08-01-08-02"
+Psl,Sedimentary rocks,Lopingian,"Clastic sedimentary, carbonate, and minor evaporitic rocks.",Sedimentary rock,"08-01-01-01"
+Psm,Sedimentary rocks,Guadalupian,"Clastic sedimentary, carbonate, and minor evaporitic rocks.",Sedimentary rock,"08-01-01-02"
+Pse,Sedimentary rocks,Cisuralian,Mostly clastic sedimentary rocks with lesser carbonate and minor evaporitic rock.,Clastic sedimentary rock,"08-01-01-03"
+PNsl,Sedimentary rocks,Late Pennsylvanian,Clastic sedimentary and carbonate rocks.,Sedimentary rock,"08-01-03-01"
+PNsm,Sedimentary rocks,Middle Pennsylvanian,Clastic sedimentary and carbonate rocks.,Sedimentary rock,"08-01-03-02"
+PNse,Sedimentary rocks,Early Pennsylvanian,Clastic sedimentary and carbonate rocks.,Sedimentary rock,"08-01-03-03"
+PZpCm,Metamorphic rocks,Paleozoic to Precambrian,Metamorphic rocks with poorly constrained ages that may range from Paleozoic to Precambrian.,"Medium and high-grade regional metamorphic rock, of unspecified origin","09-02"
+PZpCms,Metasedimentary rocks,Paleozoic to Precambrian,"Metasedimentary rocks of variable metamorphic grade, with poorly constrained ages that may range from Paleozoic to Precambrian.",Metasedimentary rock,"09-02-01"
+PZpCg,Igneous rocks,Paleozoic to Precambrian,"Poorly dated, mostly intrusive igneous rocks, includes some metavolcanic rocks.",Coarse-grained intrusive igneous rock,"09-03"
+PZpCum,Ultramafic rocks,Paleozoic to Precambrian,Variably altered and metamorphosed ultramafic rocks.,Meta-ultramafic rock,"09-01"
+PZpCmg,Metaigneous rocks,Paleozoic to Precambrian,"Mostly metavolcanic rocks, locally includes units with intrusive protoliths.",Metaigneous rock,"09-02-02"
+CAZms,Metasedimentary rocks,Cambrian to Neoproterozoic,"Metasedimentary rocks of variable metamorphic grade, ranging from Cambrian to Neoproterozoic.",Metasedimentary rock,"09-02-01-01"
+CAs,Sedimentary rocks,Cambrian,Carbonate rocks and lesser clastic sedimentary rocks.,Mostly carbonate rock,"08-01-09-01"
+CAm,Metamorphic rocks,Cambrian,"Quartzite, lesser phyllite and other metamorphic rocks.",Metasedimentary rock,"08-01-09-02"
+PPNs,Sedimentary rocks,Permian to Pennsylvanian,"Clastic sedimentary, carbonate, and minor evaporitic rocks with ages that may range from Permian to Pennsylvanian.",Sedimentary rock,"08-01-02"
+Ti,Intrusive rocks,Tertiary,Intrusive rocks of all compostions and textures.,Intrusive igneous rock,"04-02-01"
+Tva,Intermediate volcanic rocks,Tertiary,Intermediate lava flows.,Intermediate-composition lava flows,"04-02-02"
+Tvr,Felsic volcanic rocks,Tertiary,"Felsic pyroclastic flows, lava flows, and air-fall tephra.",Felsic-composition pyroclastic flows,"04-02-03"
+Cs,Sedimentary rocks,Pennsylvanian to Mississippian (Carboniferous),Clastic sedimentary and carbonate rocks with ages that may range from Pennsylvanian to Mississippian.,Sedimentary rock,"08-01-05"
+MZm,Metamorphic rocks,Mesozoic,"Metamorphic rocks with a wide variety of grades and protoliths, locally includes some breccia andf melange units.",Metamorphic rock,"06-03"
+Dsl,Sedimentary rocks,Late Devonian,Sandstone and mudstone with minor carbonate rocks.,Sandstone and mudstone,"08-01-06-01"
+Dsme,Sedimentary rocks,Middle Devonian to Early Devonian,"Clastic sedimentary and carbonate rocks, minor chert.",Sedimentary rock,"08-01-06-02"
+TpCim,Igneous and metamorphic rocks of unspecified age,Tertiary to Precambrian,Igneous and metamorphic rocks of unknown age.,Igneous and metamorphic rock,"12"
+QTs,"Clastic sediments, undifferentiated",Quaternary and Tertiary,"Mostly sand and gravel, with minor carbonate and finer-grained clastic rocks; age of source units may range from Quaternary to Tertiary.",Clastic sediment,"03-01"
+QTv,Volcanic rocks,Quaternary and Tertiary,"Mostly intermediate to mafic lava flows, includes all volcanic rocks with ages that may range from Quaternary to Tertiary.",Extrusive igneous material,"03-02"
+Tvs,Volcaniclastic rocks,Tertiary,"Units with mixed sedimentary and volcanic lithologies, and minor reworked pyroclastic material.",Sedimentary and extrusive igneous material,"04-03"
+MZvs,Volcaniclastic rocks,Mesozoic,Units that include both sedimentary and extrusive igneous rocks.,Sedimentary and extrusive igneous material,"06-05"
+PZum,Ultramafic rocks,Paleozoic,Mostly pyroxenite and peridotite.,Ultramafic intrusive igneous rock,"08-02-01"
+PZm,Undifferentiated metamorphic rocks,Paleozoic,"Mostly melange and other deformation-related rocks, some high-grade gneisses, and minor undifferentiated low-grade rocks.",Metamorphic rock,"08-03"
+PRum,Ultramafic rocks,Proterozoic,Variably metamorphosed ultramafic rocks.,Meta-ultramafic rock,10-01-01
+Zs,Clastic sedimentary rocks,Neoproterozoic,"Clastic sedimentary rocks, locally includes minor limestone.",Clastic sedimentary rock,10-01-02-01
+Zg,Granitic rocks,Neoproterozoic,Mostly granitic rocks with lesser gabbro and felsic lava flows.,Coarse-grained intrusive igneous rock,10-01-02-02
+Zm,Metamorphic and igneous rocks,Neoproterozoic,Undifferentiated gneisses.,"Medium and high-grade regional metamorphic rock, of unspecified origin",10-01-02-03
+Zms,Metasedimentary rocks,Neoproterozoic,Metasedimentary rocks of variable metamorphic grade.,Metasedimentary rock,10-01-02-03-01
+Zmg,Metaigneous rocks,Neoproterozoic,Metamorphosed extrusive and intrusive igneous rocks of variable metamorphic grade.,Metaigneous rock,10-01-02-03-02
+Yu,Undifferentiated Mesoproterozoic rocks,Mesoproterozoic,"Metamorphic rocks, mostly of medium to high-grade with unspecified or unknown protoliths.","Medium and high-grade regional metamorphic rock, of unspecified origin",10-01-03
+Yms,Sedimentary and metasedimentary rocks,Mesoproterozoic,"Metasedimentary schists and gneisses, locally includes some lower-grade rocks.",Metasedimentary rock,10-01-03-01
+Ymss,Clastic sedimentary rocks,Mesoproterozoic,"Clastic sedimentary rocks, mostly sandstones or quartzites.",Mostly sandstone,10-01-03-01-01
+Ymc,Marble and calc-silicate rocks,Mesoproterozoic,"Marble and calc-silicate rocks,locally inlcudes minor clastic rocks.",Meta-carbonate rock,10-01-03-01-02
+Yl,Igneous rocks,Mesoproterozoic,"Undifferentiated Mesoproterozoic igneous rocks. Mostly lava flows and other extrusive rocks, with lesser fine-grained intrusive rocks.",Extrusive igneous material,10-01-03-02
+Ygg,Granitic rocks,Mesoproterozoic,"Coarse-grained felsic intrusive rocks, mostly granitic.","Coarse-grained, felsic-composition intrusive igneous rock",10-01-03-02-01
+Ymg,Mafic intrusive rocks,Mesoproterozoic,Coarse-grained mafic intrusive rocks.,"Coarse-grained, mafic-composition intrusive igneous rock",10-01-03-02-02
+Xu,Undifferentiated Paleoproterozoic rocks,Paleoproterozoic,"Undifferentiated Paleoproterozoic rocks, mostly generalized metamorphic units.",Metamorphic rock,10-01-04
+Xi,Igneous and metaigneous rocks,Paleoproterozoic,Variably metamorphosed extrusive and intrusive igneous rocks.,Igneous rock,10-01-04-01
+Xig,Granitic rocks,Paleoproterozoic,"Mostly granites, includes some intermediate plutonic bodes.",Coarse-grained intrusive igneous rock,10-01-04-01-01
+Xim,Gabbro and mafic lava flows,Paleoproterozoic,Variably metamorphosed gabbro and mostly mafic lava flows.,"Coarse-grained, mafic-composition intrusive igneous rock",10-01-04-01-02
+Xms,Metasedimentary rocks,Paleoproterozoic,"Mostly schists and gneisses, includes some lower-grade clastic rocks.",Metasedimentary rock,10-01-04-02
+Xmsq,Quartzite,Paleoproterozoic,"Mostly quartzite, locally includes other clastic rocks.",Quartzite,10-01-04-02-01
+Xmss,Slate and sandstone,Paleoproterozoic,"Slate and sandstone, locally includes minor carbonate rocks.","Slate and phyllite, of sedimentary-rock origin",10-01-04-02-02
+Xif,Iron formation,Paleoproterozoic,"Banded iron formation, locally includes interbedded chert and clastic sedimentary rocks.",Iron-rich sedimentary rock,10-01-04-02-03
+Au,Undifferentiated Archean rocks,Archean,"Undifferentiated Archean metamorphic rocks, mostly generalized units where the Superior and Wyoming Provinces are mapped in the subsurface.","Medium and high-grade regional metamorphic rock, of unspecified origin",10-02
+Ams,Metasedimentary rocks,Archean,"Mostly schists and gneisses, includes some lower-grade rocks.",Metasedimentary rock,10-02-01
+Aif,Iron formation,Archean,Banded iron formation in northern Minnesota.,Iron-rich sedimentary rock,10-02-01-01
+Ai,Intrusive rocks,Archean,"Undifferentiated Archean igneous rocks, mostly felsic gneisses in the Superior and Wyoming Provinces.",Metaigneous rock,10-02-02
+Aig,Granitic rocks,Archean,Granitic rocks in the Superior and Wyoming Provinces.,"Coarse-grained, felsic-composition intrusive igneous rock",10-02-02-01
+Aum,Ultramafic rocks,Archean,"Ultramafic and locally mafic rocks, mostly intrusive.",Meta-ultramafic rock,10-02-02-02
+scz,Shear zone rocks,Unspecified,Mylonite and cataclastic rocks of unspecified age.,Deformation-related metamorphic rock,"11"
+MZum,Ultramafic rocks,Mesozoic,Variably altered and metamorphosed ultramafic rocks.,Meta-ultramafic rock,"06-02"
+MZgr,Granitic rocks,Mesozoic,Mostly granites and other felsic to intermediate intrusive rocks.,"Coarse-grained, felsic-composition intrusive igneous rock","06-04-02"
+Mzgm,Mafic intrusive rocks,Mesozoic,"Mafic intrusive rocks, locally includes intermediate and ultramafic bodies.","Coarse-grained, mafic-composition intrusive igneous rock","06-04-03"
+TMZg,Intrusive rocks,Tertiary to Mesozoic,"Mostly granite and other felsic to intermediate intrusive rocks, may locally include other rock types.","Coarse-grained, felsic-composition intrusive igneous rock","05-02"
+TMZs,Clastic sedimentary rocks,Tertiary to Mesozoic,"Undifferentiated sedimentary rocks, mostly sandstone, mudstone, and conglomerate.",Clastic sedimentary rock,"05-03"
+paTKs,Clastic sedimentary rocks,Paleocene to Cretaceous,Clastic sedimentary rocks.,Clastic sedimentary rock,"05-03-01"
+Qs,"Clastic sediments, undifferentiated",Quaternary,"Undifferentiated clastic sediments, including alluvium, glacial deposits, and landslide deposits.",Clastic sediment,"02-01"
+Qg,"Glacial till, undifferentiated",Quaternary,"Undifferentiated glacial till and local outwash or other ice-contact and ice-marginal deposits. Primarily deposits associated with the most recent glaciation, but locally includes units categorized broadly as Pleistocene or Quaternary.",Glacial till,"02-01-01"
+Qgo,Older glacial till,middle Pleistocene to early Pleistocene,Glacial till and local outwash or other ice-contact and ice-marginal deposits.,Glacial till,"02-01-01-02"
+Qic,Ice-contact and ice-marginal sediment,Quaternary,"Primarily outwash and other glaciofluvial sand and gravel deposits, including kame deposits. Locally includes lacustrine, pediment, and undifferentiated drift deposits. Mostly late Pleistocene; includes some undifferentiated Quaternary units.",Ice-contact and ice-marginal sediment,"02-01-02"
+Qico,Older ice-contact and ice-marginal sediment,middle Pleistocene to early Pleistocene,Primarily outwash sand and gravel.,Ice-contact and ice-marginal sediment,"02-01-02-02"
+Qe,Eolian sediment,Quaternary,Undifferentiated Quaternary eolian deposits.,Eolian sediment,"02-01-03"
+Qa,"Alluvial sediment, undifferentiated",Quaternary,"Alluvial sediment, including channel, floodplain, alluvial fan, and some terrace deposits. Locally includes colluvium.",Alluvial sediment,"02-01-04"
+Qay,Young alluvial sediment,Holocene,Primarily active stream and floodplain deposits.,Alluvial sediment,"02-01-04-01"
+Qai,Intermediate alluvial sediment,Holocene to late Pleistocene,Primarily stream terrace deposits. Locally includes flood plain deposits and minor amounts of locally derived colluvium.,Alluvial sediment,"02-01-04-02"
+Qao,Old alluvial sediment,Pleistocene,"Primarily terrace deposits. Includes deposits characterized broadly as Pleistocene, and some middle to early Pleistocene deposits.",Alluvial sediment,"02-01-04-03"
+Ql,Lacustrine sediment,Quaternary,Undifferentiated Quaternary lacustrine sediment.,Lacustrine sediment,"02-01-05"
+Qcz,Coastal zone sediment,Quaternary,"Primarily beach and near-shore environment deposits. Locally includes marsh and swamp deposits. Generally Pleistocene, but in some source materials only distinguished as Quaternary.",Coastal zone sediment,"02-01-06"
+Qm,Marine sediment,Quaternary,"Primarily sand, silt, and clay associated with back-barrier and lagoon depositional settings. Locally includes gravel. Generally middle to early Pleistocene, but in some source materials only distinguished as Quaternary.",Marine sediment,"02-01-07"
+Qp,Playa sediment,Quaternary,Playa deposits.,Playa sediment,"02-01-08"
+Qpm,Peat and muck,Quaternary,Primarily Holocene to late Pleistocene swamp and bog deposits.,Peat and muck,"02-01-09"
+Qls,"Debris flows, landslides, and other localized mass-movement sediment",Quaternary,Primarily landslide deposits of undifferentiated Quaternary age.,"Debris flows, landslides, and other localized mass-movement sediment","02-01-11"
+Qcsr,Carbonate sediment and evaporite,Quaternary,Carbonate and/or evaporitic rocks and sediments.,Carbonate sediment,"02-01-10"

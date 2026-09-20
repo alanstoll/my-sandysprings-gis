@@ -232,6 +232,59 @@ tasks.register('prepareTaxParcels') {
 	}
 }
 
+// The USGS National Geologic Map's Earth Surface synthesis, an ArcGIS feature service in the GeMS
+// schema, far too large to commit. This pulls what intersects the map bounds and clips it: the
+// map units, their contacts and faults, and the two description tables the units join at
+// transform time, the way the ACS estimates join their geographies. The second table describes
+// the units of the source map the synthesis was compiled from, which here is the 1976 Geologic
+// map of Georgia and carries far more distinctions than the synthesis keeps. Not wired into
+// bootRun: it is a download.
+//
+// Only Earth Surface: the service also publishes Quaternary, Pre-Quaternary and Precambrian
+// syntheses, but inside these bounds the last two are identical to this one to the metre and the
+// first is a single undifferentiated unit.
+tasks.register('prepareGeology') {
+	group = 'gis'
+	description = 'Clips the USGS National Geologic Map Earth Surface service to the map bounds, writing data/layers/geology-{unit,line}.geojson and geology-{dmu,source-dmu}.csv'
+	doLast {
+		def service = 'https://services.arcgis.com/v01gqwM5QqNysAAi/arcgis/rest/services/National_Earth_Surface_v2/FeatureServer'
+		def envelope = "geometry=${mapBounds.join(',')}&geometryType=esriGeometryEnvelope&inSR=4326" +
+				'&spatialRel=esriSpatialRelIntersects&outSR=4326&'
+		def query = { int layer, String params ->
+			"'ESRIJSON:${service}/${layer}/query?${params.startsWith('where=') ? '' : 'where=1%3D1&'}${params}outFields=*&f=json' -oo FEATURE_SERVER_PAGING=YES"
+		}
+		def clip = "-clipsrc ${mapBounds.join(' ')} -nlt PROMOTE_TO_MULTI -lco RFC7946=YES -lco COORDINATE_PRECISION=6"
+		def outputs = ['geology-unit.geojson', 'geology-line.geojson', 'geology-dmu.csv', 'geology-source-dmu.csv']
+		outputs.each { new File(dataDir, "layers/${it}").delete() }
+		def commands = [
+				"ogr2ogr -f GeoJSON /data/layers/geology-unit.geojson ${query(6, envelope)} ${clip}" +
+						' -dialect SQLite -sql "select MapUnit as map_unit, IdentityConfidence as identity_confidence,' +
+						' MapSourceID as source_map, Source_MapUnit as source_unit, geometry from ESRIJSON"',
+				"ogr2ogr -f GeoJSON /data/layers/geology-line.geojson ${query(3, envelope)} ${clip}" +
+						' -dialect SQLite -sql "select Type as type, IsConcealed as concealed, Symbol as symbol, geometry from ESRIJSON"',
+				// headings in the description tables have no unit and describe nothing on the map
+				"ogr2ogr -f CSV /data/layers/geology-dmu.csv ${query(8, '')}" +
+						' -dialect SQLite -sql "select MapUnit as map_unit, Name as name, Age as age, Description as description,' +
+						' GeoMaterial as geomaterial, HierarchyKey as hierarchy from ESRIJSON where MapUnit is not null"',
+				// only the one source map inside these bounds (the unit file's source_map column says
+				// which): the table describes every source map in the country, 7,500 rows
+				"ogr2ogr -f CSV /data/layers/geology-source-dmu.csv ${query(11, 'where=Source_MapUnit+LIKE+%2752%7C%25%27&')}" +
+						' -dialect SQLite -sql "select Source_MapUnit as source_unit, Name as name, Age as age, Description as description,' +
+						' GeoMaterial as geomaterial from ESRIJSON where Source_MapUnit is not null"',
+		]
+		// a script file rather than sh -c: the commands quote urls and sql, and ProcessBuilder on
+		// Windows does not escape quotes inside an argument
+		def script = layout.buildDirectory.file('prepare-geology.sh').get().asFile
+		script.parentFile.mkdirs()
+		script.text = (['set -e'] + commands).join('\n') + '\n'
+		runCommand(['docker', 'run', '--rm',
+				'-v', "${dataDir.absolutePath.replace(File.separatorChar, '/' as char)}:/data",
+				'-v', "${script.absolutePath.replace(File.separatorChar, '/' as char)}:/prepare.sh:ro", gdalImage,
+				'sh', '/prepare.sh'])
+		outputs.each { logger.lifecycle("prepareGeology: wrote ${it} (${(new File(dataDir, "layers/${it}").length() / 1024) as int} KB)") }
+	}
+}
+
 // The American Community Survey is tabular, so an ACS layer takes two committed sources per
 // geography: polygons from TIGER/Line, and the estimates keyed to them by GEOID. Keeping them apart
 // is what makes adding a table later a column in the csv rather than a re-clip of the geometry.

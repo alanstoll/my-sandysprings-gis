@@ -3,7 +3,12 @@
     "layer": "city_limit",
     "source": "layers/city-limit.geojson",
     "table": "city_limit_raw",
-    "options": ["-nlt", "PROMOTE_TO_MULTI", "-t_srs", "EPSG:4326"],
+    "options": [
+      "-nlt",
+      "PROMOTE_TO_MULTI",
+      "-t_srs",
+      "EPSG:4326"
+    ],
     "attribution": "City of Sandy Springs GIS Department",
     "license": "CC BY 4.0",
     "url": "https://gis2.sandyspringsga.gov/arcgis/rest/services/OpenData/General_Reference/MapServer/107"
@@ -12,7 +17,10 @@
     "layer": "flood_zone",
     "source": "layers/flood-hazard.geojson",
     "table": "flood_zone_raw",
-    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "options": [
+      "-nlt",
+      "PROMOTE_TO_MULTI"
+    ],
     "attribution": "FEMA National Flood Hazard Layer, Fulton County (13121C), effective 2024-07-12",
     "license": "Public domain",
     "url": "https://msc.fema.gov/portal/advanceSearch"
@@ -21,7 +29,10 @@
     "layer": "acs_bg_geom",
     "source": "layers/acs-bg.geojson",
     "table": "acs_bg_geom_raw",
-    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "options": [
+      "-nlt",
+      "PROMOTE_TO_MULTI"
+    ],
     "attribution": "U.S. Census Bureau, TIGER/Line 2024 block groups",
     "license": "Public domain",
     "url": "https://www2.census.gov/geo/tiger/TIGER2024/BG/"
@@ -39,7 +50,10 @@
     "layer": "acs_tract_geom",
     "source": "layers/acs-tract.geojson",
     "table": "acs_tract_geom_raw",
-    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "options": [
+      "-nlt",
+      "PROMOTE_TO_MULTI"
+    ],
     "attribution": "U.S. Census Bureau, TIGER/Line 2024 census tracts",
     "license": "Public domain",
     "url": "https://www2.census.gov/geo/tiger/TIGER2024/TRACT/"
@@ -57,10 +71,54 @@
     "layer": "tax_parcel",
     "source": "layers/tax-parcel.geojson",
     "table": "tax_parcel_raw",
-    "options": ["-nlt", "PROMOTE_TO_MULTI"],
+    "options": [
+      "-nlt",
+      "PROMOTE_TO_MULTI"
+    ],
     "attribution": "Fulton County Board of Assessors, 2026 tax digest",
     "license": "Public record",
     "url": "https://gisdata.fultoncountyga.gov/datasets/tax-parcels"
+  },
+  {
+    "layer": "geology_unit",
+    "source": "layers/geology-unit.geojson",
+    "table": "geology_unit_raw",
+    "options": [
+      "-nlt",
+      "PROMOTE_TO_MULTI"
+    ],
+    "attribution": "USGS National Geologic Map v2, Earth Surface synthesis, clipped to the map bounds; source units from Lawton and others, 1976, Geologic map of Georgia, 1:500,000",
+    "license": "Public domain",
+    "url": "https://ngmdb.usgs.gov/nationalgeology"
+  },
+  {
+    "layer": "geology_line",
+    "source": "layers/geology-line.geojson",
+    "table": "geology_line_raw",
+    "options": [
+      "-nlt",
+      "PROMOTE_TO_MULTI"
+    ],
+    "attribution": "USGS National Geologic Map v2, Earth Surface synthesis, clipped to the map bounds; source units from Lawton and others, 1976, Geologic map of Georgia, 1:500,000",
+    "license": "Public domain",
+    "url": "https://ngmdb.usgs.gov/nationalgeology"
+  },
+  {
+    "layer": "geology_dmu",
+    "source": "layers/geology-dmu.csv",
+    "table": "geology_dmu_raw",
+    "options": [],
+    "attribution": "USGS National Geologic Map v2, Earth Surface synthesis, clipped to the map bounds; source units from Lawton and others, 1976, Geologic map of Georgia, 1:500,000",
+    "license": "Public domain",
+    "url": "https://ngmdb.usgs.gov/nationalgeology"
+  },
+  {
+    "layer": "geology_source_dmu",
+    "source": "layers/geology-source-dmu.csv",
+    "table": "geology_source_dmu_raw",
+    "options": [],
+    "attribution": "USGS National Geologic Map v2, Earth Surface synthesis, clipped to the map bounds; source units from Lawton and others, 1976, Geologic map of Georgia, 1:500,000",
+    "license": "Public domain",
+    "url": "https://ngmdb.usgs.gov/nationalgeology"
   }
 ]
-

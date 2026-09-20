@@ -93,12 +93,23 @@ const THEMES: Theme[] = [
   { style: 'acs_commute_car', label: 'Commuted without driving alone', layer: 'acs_tract' },
 ]
 
+// Four renderings of the USGS National Geologic Map's Earth Surface polygons, a radio group like
+// the census themes since they colour the same ground. Ids are the GeoServer style names. Source
+// is the one with detail: the 1976 Geologic map of Georgia that the synthesis was compiled from
+// here names seventeen rock units where the synthesis keeps three.
+const GEOLOGY = [
+  { style: 'geology_source', label: 'Source map units (Georgia, 1976)' },
+  { style: 'geology_synthesis', label: 'Synthesis units' },
+  { style: 'geology_geomaterial', label: 'Geomaterial' },
+  { style: 'geology_age', label: 'Age' },
+]
+
 /**
  * A named starting point: which nodes the panel offers, which of them start switched on, and which
- * census theme is drawn. Availability and visibility are separate because they answer different
- * questions -- what belongs on this map at all, and what you want to see first. "All layers" is the
- * one view that withholds nothing, which is what makes it different from "City map" despite the two
- * switching on the same things.
+ * theme is drawn, in whichever radio group owns it. Availability and visibility are separate
+ * because they answer different questions -- what belongs on this map at all, and what you want to
+ * see first. "All layers" is the one view that withholds nothing, which is what makes it different
+ * from "City map" despite the two switching on the same things.
  *
  * A view names nodes rather than layers so it does not have to know that the basemap is a hundred
  * of them, and styles rather than layers for the theme so it never has to say which geography a
@@ -124,6 +135,8 @@ const VIEWS: View[] = [
   { id: 'income', label: 'Median household income',
     available: ['census', 'city_limit_inhouse', 'city_limit', 'basemap'],
     on: ['city_limit_inhouse', 'basemap'], theme: 'acs_income' },
+  { id: 'geology', label: 'Geology', available: ['geology', 'city_limit_inhouse', 'city_limit', 'basemap'],
+    on: ['city_limit_inhouse', 'basemap'], theme: 'geology_source' },
 ]
 
 // Filled in before the map is: the sidebar has no reason to wait on tiles to show its own controls.
@@ -149,6 +162,16 @@ map.on('load', async () => {
     attribution: 'Aerial imagery: USGS, USDA, The National Map (public domain)',
   })
   map.addLayer({ id: 'aerial', type: 'raster', source: 'aerial', layout: { visibility: 'none' } }, roadsUp)
+
+  // The USGS National Geologic Map, its contacts and faults in the same request, restyled to
+  // whichever rendering is chosen. Under the roads like every other overlay.
+  map.addSource('geology', {
+    type: 'raster',
+    tiles: [wms('sandysprings:geology_unit,sandysprings:geology_line', `${GEOLOGY[0].style},geology_line`)],
+    tileSize: 512,
+    attribution: 'Geology: USGS National Geologic Map (public domain)',
+  })
+  map.addLayer({ id: 'geology', type: 'raster', source: 'geology', layout: { visibility: 'none' } }, roadsUp)
 
   // One source per geography, both anchored under the roads so you can see what is inside them.
   // Only ever one is visible: two choropleths at once just occlude each other.
@@ -220,6 +243,37 @@ map.on('load', async () => {
   // popup reads them back off the legend rather than keeping its own copy of the labels.
   const parcelClasses = Object.fromEntries(taxParcel.map(({ name, label }) => [name, label]))
 
+  // Whichever rendering is on, a click answers with both what the synthesis says and what the
+  // source map said, since the fill only ever shows one of them.
+  const geologyNode: LayerNode = {
+    id: 'geology',
+    label: 'Geology (USGS National Geologic Map)',
+    layers: ['geology'],
+    themes: GEOLOGY.map(({ style, label }) => ({ style, label })),
+    theme: null,
+    identify: [{
+      layer: 'geology',
+      source: 'sandysprings:geology_unit',
+      properties: ['map_unit', 'name', 'age', 'geomaterial', 'description', 'identity_confidence',
+        'source_unit', 'source_name', 'source_age', 'source_description'],
+      section: (p) => ({
+        title: `${p.source_unit}: ${p.source_name ?? 'unit not in the source description table'}`,
+        body: {
+          kind: 'table',
+          rows: [
+            { label: 'Source age', value: String(p.source_age ?? '-') },
+            ...(p.source_description ? [{ label: 'Source description', value: String(p.source_description) }] : []),
+            { label: 'Synthesis unit', value: `${p.map_unit}: ${p.name ?? 'not in the description table'}` },
+            { label: 'Synthesis age', value: String(p.age ?? '-') },
+            { label: 'Material', value: String(p.geomaterial ?? '-') },
+            { label: 'Description', value: String(p.description ?? '-') },
+            { label: 'Identity', value: String(p.identity_confidence) },
+          ],
+        },
+      }),
+    }],
+  }
+
   const censusNode: LayerNode = {
     id: 'census',
     label: 'Census (ACS 2020-2024)',
@@ -283,6 +337,7 @@ map.on('load', async () => {
 
   const allNodes: LayerNode[] = [
     { id: 'aerial', label: 'Aerial imagery (NAIP)', layers: ['aerial'] },
+    geologyNode,
     // no identify: the city limit is a reference boundary, and as a polygon it would answer every
     // click inside the city with the same row
     { id: 'city_limit_inhouse', label: 'City limits', layers: ['city_limit_inhouse'], legend: cityLimitInhouse },
@@ -352,9 +407,10 @@ map.on('load', async () => {
   }
   let panel = createLayerPanel(map, elements, allNodes)
 
-  // Repointing the source beats keeping ten layers alive, one per theme. Split from setTheme so a
-  // view can move the map and rebuild the panel once, rather than refresh a panel it is replacing.
-  const applyTheme = async (style: string | null) => {
+  // Repointing the source beats keeping ten layers alive, one per theme. Split from the radio
+  // handler so a view can move the map and rebuild the panel once, rather than refresh a panel it
+  // is replacing.
+  const applyCensus = async (style: string | null) => {
     const theme = THEMES.find((candidate) => candidate.style === style) ?? null
     censusNode.theme = theme?.style ?? null
     for (const layer of ACS_LAYERS) {
@@ -366,12 +422,33 @@ map.on('load', async () => {
     censusNode.legend = theme ? await legendFor(`sandysprings:${theme.layer}`, theme.style) : []
   }
 
-  // The two entry points anything else drives the map through: a radio now, a gallery tile later.
-  const setTheme = async (style: string | null) => {
-    await applyTheme(style)
-    panel.refresh()
+  // Same shape for the geology renderings; the lines keep their one style whichever is chosen,
+  // and the legend is the rendering's units followed by the line types.
+  const applyGeology = async (style: string | null) => {
+    const chosen = GEOLOGY.find((candidate) => candidate.style === style) ?? null
+    geologyNode.theme = chosen?.style ?? null
+    map.setLayoutProperty('geology', 'visibility', chosen ? 'visible' : 'none')
+    if (chosen) {
+      map.getSource<RasterTileSource>('geology')!
+        .setTiles([wms('sandysprings:geology_unit,sandysprings:geology_line', `${chosen.style},geology_line`)])
+    }
+    geologyNode.legend = chosen
+      ? [...(await legendFor('sandysprings:geology_unit', chosen.style)), ...(await legendFor('sandysprings:geology_line'))]
+      : []
   }
-  censusNode.onTheme = setTheme
+
+  // Each radio group, with the choices it owns: a view names one theme and it goes to whichever
+  // group knows it. The radio is the entry point anything else drives a group through.
+  const groups = [
+    { node: censusNode, styles: THEMES.map(({ style }) => style), apply: applyCensus },
+    { node: geologyNode, styles: GEOLOGY.map(({ style }) => style), apply: applyGeology },
+  ]
+  for (const group of groups) {
+    group.node.onTheme = async (style) => {
+      await group.apply(style)
+      panel.refresh()
+    }
+  }
 
   const setView = async (id: string) => {
     const view = VIEWS.find((candidate) => candidate.id === id) ?? VIEWS[0]
@@ -384,7 +461,9 @@ map.on('load', async () => {
         map.setLayoutProperty(layer, 'visibility', on ? 'visible' : 'none')
       }
     }
-    await applyTheme(offered.includes(censusNode) ? view.theme : null)
+    for (const group of groups) {
+      await group.apply(offered.includes(group.node) && view.theme && group.styles.includes(view.theme) ? view.theme : null)
+    }
     panel = createLayerPanel(map, elements, offered)
   }
 

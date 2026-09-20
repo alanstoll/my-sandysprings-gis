@@ -41,6 +41,10 @@ class GeoServerPublisher implements ApplicationRunner {
 			"acs_no_vehicle", "acs_income", "acs_home_value", "acs_rent", "acs_renter",
 			"acs_commute_home", "acs_commute_car");
 
+	/** Four renderings of the one geology layer; the frontend offers them as its themes. */
+	private static final List<String> GEOLOGY_STYLES = List.of("geology_synthesis", "geology_source",
+			"geology_geomaterial", "geology_age");
+
 	private final RestClient rest;
 
 	GeoServerPublisher(RestClient.Builder builder, @Value("${sandysprings.geoserver.url}") String url,
@@ -62,10 +66,14 @@ class GeoServerPublisher implements ApplicationRunner {
 		ensureFeatureType("acs_bg", "geoserver/featuretype-acs-bg.json");
 		ensureFeatureType("acs_tract", "geoserver/featuretype-acs-tract.json");
 		ensureFeatureType("tax_parcel", "geoserver/featuretype-tax-parcel.json");
+		ensureFeatureType("geology_unit", "geoserver/featuretype-geology-unit.json");
+		ensureFeatureType("geology_line", "geoserver/featuretype-geology-line.json");
 		ensureStyle("city_limit", "geoserver/style-city-limit.sld");
 		ensureStyle("city_limit_inhouse", "geoserver/style-city-limit-inhouse.sld");
 		ensureStyle("flood_zone", "geoserver/style-flood-zone.sld");
 		ensureStyle("tax_parcel", "geoserver/style-tax-parcel.sld");
+		GEOLOGY_STYLES.forEach(style -> ensureStyle(style, "geoserver/style-" + style.replace('_', '-') + ".sld"));
+		ensureStyle("geology_line", "geoserver/style-geology-line.sld");
 		// One style per theme across the two acs layers; the client picks with the WMS styles
 		// parameter. Which layer a theme belongs to is the frontend's business, not GeoServer's:
 		// here they are just styles that happen to match one schema or the other.
@@ -76,6 +84,8 @@ class GeoServerPublisher implements ApplicationRunner {
 		update("/layers/sandysprings:acs_bg", "geoserver/layer-acs-bg.json");
 		update("/layers/sandysprings:acs_tract", "geoserver/layer-acs-tract.json");
 		update("/layers/sandysprings:tax_parcel", "geoserver/layer-tax-parcel.json");
+		update("/layers/sandysprings:geology_unit", "geoserver/layer-geology-unit.json");
+		update("/layers/sandysprings:geology_line", "geoserver/layer-geology-line.json");
 	}
 
 	private void ensure(String collection, String name, String body) {

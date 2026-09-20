@@ -1,0 +1,12 @@
+{
+  "layer": {
+    "defaultStyle": {
+      "name": "geology_line",
+      "workspace": "sandysprings"
+    },
+    "attribution": {
+      "title": "USGS National Geologic Map v2, Earth Surface synthesis, after Lawton and others, 1976, Geologic map of Georgia (public domain)",
+      "href": "https://ngmdb.usgs.gov/nationalgeology"
+    }
+  }
+}

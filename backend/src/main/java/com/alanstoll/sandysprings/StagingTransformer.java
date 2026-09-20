@@ -35,6 +35,8 @@ class StagingTransformer implements ApplicationRunner {
 		transform("acs_bg", "transform/acs-bg.sql");
 		transform("acs_tract", "transform/acs-tract.sql");
 		transform("tax_parcel", "transform/tax-parcel.sql");
+		transform("geology_unit", "transform/geology-unit.sql");
+		transform("geology_line", "transform/geology-line.sql");
 		// built from gis.city_limit above rather than from staging, so it goes last
 		transform("city_limit_inhouse", "transform/city-limit-inhouse.sql");
 	}
